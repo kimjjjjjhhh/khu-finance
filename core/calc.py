@@ -107,3 +107,10 @@ def card(monthly_spend: float, discount_pct: float, monthly_cap: float | None, a
 def won(n: float) -> str:
     """화면 표시용: 3649491.0 -> '3,649,491원' (0.5는 올림. 파이썬 round()는 짝수 쪽으로 반올림한다)"""
     return f"{int(Decimal(str(n)).quantize(Decimal('1'), rounding=ROUND_HALF_UP)):,}원"
+
+
+def won_short(n: int) -> str:
+    """버튼, 안내 문구용: 5000000 -> '500만 원', 15000 -> '15,000원'"""
+    if n >= 10_000 and n % 10_000 == 0:
+        return f"{n // 10_000:,}만 원"
+    return won(n)

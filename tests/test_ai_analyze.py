@@ -61,8 +61,12 @@ def test_hallucinated_number_not_autofilled(deps):
     checks = {(c.label, c.value): c.found for c in a.number_checks}
     assert checks[("기본금리", 3.0)] and not checks[("최고금리", 5.0)]
     ci = calculator_inputs(a)
-    assert ci.values["rate"] == 3.0 and ci.values["months"] == 12 and ci.values["amount"] == 300_000
-    assert {"rate", "months", "amount"} <= ci.from_doc
+    assert ci.values["rate"] == 3.0 and ci.values["months"] == 12
+    assert {"rate", "months"} <= ci.from_doc
+    # '월 최대 30만 원'은 한도라서 버튼으로만
+    assert "amount" not in ci.from_doc
+    assert ("amount", 300_000) in [(x.name, x.value) for x in ci.suggestions]
+    assert 5.0 not in [x.value for x in ci.suggestions]  # 지어낸 금리는 버튼으로도 안 보여 준다
 
 
 def test_made_up_amount_falls_back_to_example(deps):

@@ -120,6 +120,7 @@ class Analysis(_Base):
     """화면에 넘기는 최종 결과."""
 
     source: Literal["ai", "rule"]
+    text: str = ""  # 분석한 원문. 입력창이 나중에 바뀌어도 하이라이트와 숫자 맥락은 이 글 기준이다
     fallback_reason: str | None = None  # AI 대신 규칙 기반을 쓴 이유 (화면에 표시)
     kind: DocType
     verdict: str

@@ -133,3 +133,11 @@ def extract_numbers(text: str) -> Numbers:
         cap=_first_money(r"한도\s*(?:는|:)?\s*", text),
         spend=_first_money(r"실적\s*", text),
     )
+
+
+def money_context(text: str, value: int, before: int = 15, after: int = 8) -> str | None:
+    """금액이 원문에서 처음 나온 자리의 앞뒤 글. 그 금액이 한도인지 최소액인지 판단하는 데 쓴다."""
+    for m in _MONEY_RE.finditer(text):
+        if _money_at(m) == value:
+            return text[max(0, m.start() - before):m.end() + after]
+    return None

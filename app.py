@@ -11,6 +11,7 @@ from core import calc, llm
 from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
 from core.highlight import highlight_html
+from core.mdsafe import esc
 from core.glossary import load_glossary
 from core.risks import load_risks
 from core.samples import load_samples
@@ -114,19 +115,47 @@ if a is None:
     st.stop()
 
 
-# ---------- 결과: 왼쪽 ----------
+# ---------- 계산기 ----------
+SRC_LABEL = {"doc": "문서에서 읽음", "example": "예시값", "user": "내가 입력"}
+KIND_FIELDS = {"savings": ("amount", "rate", "months"), "deposit": ("amount", "rate", "months"),
+               "loan": ("amount", "rate", "months"), "card": ("fee", "discount_rate", "spend", "cap")}
+FLOAT_FIELDS = {"rate", "discount_rate"}
+
+
 def show_calculator(a: Analysis) -> None:
     ci = calculator_inputs(a)
-    r = ss.run
-    kinds = ["savings", "deposit", "loan", "card"]
+    r = ss.run  # 분석할 때마다 바뀌어서, 새 결과의 값으로 칸이 다시 채워진다
+    for name in ci.values:
+        ss.setdefault(f"src_{name}{r}", "doc" if name in ci.from_doc else "example")
+
+    def mark_user(name: str) -> None:
+        ss[f"src_{name}{r}"] = "user"
+
+    def use_doc_number(name: str, value: float) -> None:
+        ss[f"{name}{r}"] = float(value) if name in FLOAT_FIELDS else int(value)
+        ss[f"src_{name}{r}"] = "doc"
+
+    kinds = list(KIND_FIELDS)
     kind = st.selectbox("계산 종류", kinds, index=kinds.index(ci.kind), format_func=KIND_NAME.get, key=f"kind{r}")
 
-    def num(label: str, name: str, step: float = 1.0, min_value: float = 0.0, fmt: str = "%d"):
-        src = "문서에서 읽음" if name in ci.from_doc else "예시값"
+    def num(label: str, name: str, step: float = 1.0, min_value: float = 0.0):
+        cast = float if name in FLOAT_FIELDS else int
         v = ci.values[name] if ci.values[name] is not None else 0
-        cast = float if fmt != "%d" else int
-        return st.number_input(f"{label} · {src}", min_value=cast(min_value), value=cast(v), step=cast(step),
-                               format=fmt, key=f"{name}{r}")
+        value = st.number_input(label, min_value=cast(min_value), value=cast(v), step=cast(step),
+                                format="%.2f" if name == "rate" else "%.1f" if cast is float else "%d",
+                                key=f"{name}{r}", on_change=mark_user, args=(name,))
+        st.caption(SRC_LABEL[ss[f"src_{name}{r}"]])
+        return value
+
+    def doc_number_buttons() -> None:
+        sug = [x for x in ci.suggestions if x.name in KIND_FIELDS[kind]]
+        if not sug:
+            return
+        st.caption("문서에서 찾은 숫자 · 눌러서 칸에 넣어요")
+        cols = st.columns(min(len(sug), 3))
+        for i, x in enumerate(sug):
+            cols[i % len(cols)].button(esc(x.label), key=f"sug{r}_{i}", on_click=use_doc_number,
+                                       args=(x.name, x.value), width="stretch")
 
     if kind in ("savings", "deposit", "loan"):
         amount_label = {"savings": "월 납입액 (원)", "deposit": "맡기는 돈 (원)", "loan": "대출 원금 (원)"}[kind]
@@ -134,20 +163,10 @@ def show_calculator(a: Analysis) -> None:
         with c1:
             amount = num(amount_label, "amount", step=10_000)
         with c2:
-            rate = num("연 금리 (%)", "rate", step=0.1, fmt="%.2f")
+            rate = num("연 금리 (%)", "rate", step=0.1)
         with c3:
             months = num("기간 (개월)", "months", min_value=1)
-
-        verified = [x for i, x in enumerate(a.numbers.rates)
-                    if any(c.field == f"rates[{i}]" and c.found for c in a.number_checks)]
-        if verified:
-            def set_rate(v: float) -> None:
-                ss[f"rate{r}"] = float(v)
-
-            st.caption("문서에서 찾은 금리를 눌러 넣어 보세요")
-            cols = st.columns(min(len(verified), 4))
-            for i, x in enumerate(verified):
-                cols[i % len(cols)].button(f"{x.label} {x.value:g}%", key=f"rb{r}_{i}", on_click=set_rate, args=(x.value,))
+        doc_number_buttons()
 
         if kind == "loan":
             res = calc.loan(amount, rate, months)
@@ -164,18 +183,20 @@ def show_calculator(a: Analysis) -> None:
             if kind == "savings":
                 st.caption("적금은 돈이 한 달씩 차례로 들어가서, 같은 금리여도 예금보다 받는 이자가 훨씬 적어요.")
     else:
+        for note in ci.notes:
+            st.info(esc(note))
         c1, c2 = st.columns(2)
         with c1:
             fee = num("연회비 (원)", "fee", step=1_000)
-            disc = num("할인율 (%)", "discount_rate", step=0.5, fmt="%.1f")
+            disc = num("할인율 (%)", "discount_rate", step=0.5)
         with c2:
             spend = num("월 할인 대상 사용액 (원)", "spend", step=10_000)
             cap = num("월 할인 한도 (원, 0 = 한도 없음)", "cap", step=1_000)
+        doc_number_buttons()
         res = calc.card(spend, disc, cap or None, fee)
         st.metric("1년 순이익 (할인 - 연회비)", calc.won(res.net))
         st.markdown(f"월 할인액 {calc.won(res.per_month)} · 1년 할인액 {calc.won(res.annual)} · 연회비 -{calc.won(res.fee)}")
         st.caption("이 사용 패턴에서는 " + ("연회비가 더 커요." if res.net < 0 else "할인이 연회비보다 커요."))
-
 
 
 UNVERIFIED = "⚠ 원문에서 확인 안 됨"
@@ -186,7 +207,9 @@ if a.source == "ai":
 else:
     st.markdown("**규칙 기반 모드** · 사전과 규칙으로 분석했어요. 문장별 통역은 AI 모드에서 만들어져요.")
     if a.fallback_reason:
-        st.warning(f"AI 통역 대신 규칙 기반 모드로 보여 드려요: {a.fallback_reason}")
+        st.warning(f"AI 통역 대신 규칙 기반 모드로 보여 드려요: {esc(a.fallback_reason)}")
+if ss.doc.strip() != a.text.strip():
+    st.info("문서가 바뀌었어요. 다시 통역해 주세요. 아래 결과는 바뀌기 전 문서 기준이에요.")
 if a.partial:
     st.info("응답이 길어 일부가 생략됐어요. 끝까지 받은 부분만 보여 드려요.")
 if a.truncated:
@@ -196,16 +219,16 @@ left, right = st.columns([1.2, 1], gap="large")
 
 with left:
     st.subheader("한 줄 통역")
-    st.markdown(f"#### {a.verdict}")
+    st.markdown(f"#### {esc(a.verdict)}")
 
     st.subheader("원문")
     with st.container(border=True):
-        st.html(highlight_html(ss.doc, a.terms, a.risks))
+        st.html(highlight_html(a.text, a.terms, a.risks))
 
     st.subheader("이 문서의 용어")
     if a.terms:
         for t in a.terms:
-            st.markdown(f"- **{t.term}** ({t.category}) · {t.meaning}" + ("" if t.found else f" · {UNVERIFIED}"))
+            st.markdown(f"- **{esc(t.term)}** ({t.category}) · {esc(t.meaning)}" + ("" if t.found else f" · {UNVERIFIED}"))
     else:
         st.caption("사전에 있는 용어를 찾지 못했어요.")
 
@@ -215,7 +238,7 @@ with right:
         for x in a.risks:
             note = "" if x.found else f"  \n{UNVERIFIED} · AI가 쓴 인용이 원문에 없어요"
             (st.error if x.level == "high" else st.warning)(
-                f"**{'주의' if x.level == 'high' else '확인'} · {x.phrase}**  \n{x.why}{note}")
+                f"**{'주의' if x.level == 'high' else '확인'} · {esc(x.phrase)}**  \n{esc(x.why)}{note}")
     else:
         st.success("눈에 띄는 불리한 조항을 찾지 못했어요. 그래도 원문을 끝까지 읽어 보세요.")
 
@@ -240,8 +263,8 @@ if a.pairs:
     h2.caption("일상어 · 통역")
     for p in a.pairs:
         c1, c2 = st.columns(2)
-        c1.markdown(p.original + ("" if p.found else f"  \n:orange[{UNVERIFIED}]"))
-        c2.markdown(f"**{p.easy}**")
+        c1.markdown(esc(p.original) + ("" if p.found else f"  \n:orange[{UNVERIFIED}]"))
+        c2.markdown(f"**{esc(p.easy)}**")
         st.divider()
 else:
     st.caption("문장별 통역은 ‘AI로 통역하기’를 쓸 때 만들어져요. 지금은 프로토타입 예시 문서 3종에서 볼 수 있어요.")

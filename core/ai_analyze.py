@@ -159,6 +159,7 @@ def analyze_ai(
     terms = verify_terms(parsed.terms, text, glossary)
     return Analysis(
         source="ai",
+        text=text,
         kind=parsed.doc_type,
         verdict=parsed.verdict,
         pairs=verify_pairs(parsed.pairs, text),

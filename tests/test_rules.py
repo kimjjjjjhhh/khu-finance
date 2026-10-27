@@ -129,11 +129,45 @@ def test_empty_document_does_not_crash(deps):
 
 def test_calculator_prefill_from_document(deps):
     g, r, samples = deps
-    a = analyze_rule(samples[1].text, g, r, samples)  # 학자금 대출: 200만 원, 연 1.7%, 10년
+    a = analyze_rule(samples[1].text, g, r, samples)  # 학자금 대출: 최대 200만 원, 연 1.7%, 10년
     ci = calculator_inputs(a)
     assert ci.kind == "loan"
-    assert (ci.values["amount"], ci.values["rate"], ci.values["months"]) == (2_000_000, 1.7, 120)
-    assert ci.from_doc >= {"amount", "rate", "months"}
+    assert (ci.values["rate"], ci.values["months"]) == (1.7, 120)
+    assert ci.from_doc == {"rate", "months"}
+    # 대출 금액은 내가 빌릴 돈과 다를 수 있어서 칸에 넣지 않고 버튼으로만 보여 준다
+    assert ("amount", 2_000_000, "문서의 최대 한도 200만 원") in [(x.name, x.value, x.label) for x in ci.suggestions]
+
+
+def _ci(text, deps):
+    g, r, samples = deps
+    return calculator_inputs(analyze_rule(text, g, r, samples))
+
+
+def test_savings_amount_with_limit_word_is_button_only(deps):
+    ci = _ci("적금 월 최대 30만 원까지, 기본금리 연 3.0%, 12개월", deps)
+    assert "amount" not in ci.from_doc
+    assert [x.label for x in ci.suggestions if x.name == "amount"] == ["문서의 최대 한도 30만 원"]
+
+
+def test_plain_savings_amount_is_filled(deps):
+    ci = _ci("정기적금 월 30만 원, 기본금리 연 3.0%, 기간 12개월", deps)
+    assert ci.values["amount"] == 300_000 and "amount" in ci.from_doc
+    assert not [x for x in ci.suggestions if x.name == "amount"]
+
+
+def test_card_spend_condition_is_note_and_button(deps):
+    ci = _ci("카드 연회비 15,000원. 전월 실적 30만 원 이상이면 10% 청구할인, 월 할인 한도 1만 원", deps)
+    assert "spend" not in ci.from_doc and ci.values["spend"] == 300_000  # 예시값 (우연히 같은 값이어도 표시는 예시값)
+    assert ci.notes == ["혜택 조건: 지난달 30만 원 이상 사용"]
+    assert ("spend", 300_000) in [(x.name, x.value) for x in ci.suggestions]
+    assert {"fee", "discount_rate", "cap"} <= ci.from_doc
+
+
+def test_rate_buttons_skip_fees_and_duplicates(deps):
+    ci = _ci("리볼빙 수수료 연 17.9%. 대출 기본금리 연 5.5%, 금리 연 5.5%~9.9%", deps)
+    labels = [x.label for x in ci.suggestions if x.name == "rate"]
+    assert "수수료율 17.9%" not in labels
+    assert [x.value for x in ci.suggestions if x.name == "rate"].count(5.5) == 1
 
 
 def test_calculator_skips_unverified_numbers(deps):

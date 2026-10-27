@@ -3,6 +3,13 @@
 API 키는 여기에 적지 않는다. 환경변수 CHATKHU_API_KEY에서 실행할 때만 읽는다.
 """
 import os
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+GLOSSARY_PATH = DATA_DIR / "glossary.json"
+RISKS_PATH = DATA_DIR / "risks.json"
+SAMPLES_DIR = DATA_DIR / "samples"
 
 MODEL_NAME = "claude-sonnet-5-5"
 

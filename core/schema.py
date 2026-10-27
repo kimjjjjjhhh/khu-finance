@@ -29,6 +29,8 @@ class Term(_Base):
     term: str = Field(min_length=1)
     meaning: str = Field(min_length=1)
     category: Category = "기타"
+    # 원문에 실제로 나온 표기들 (예: term='전월실적', surfaces=['전월 실적']). 하이라이트에 쓴다
+    surfaces: list[str] = Field(default_factory=list)
 
     coerce_category = field_validator("category", mode="before")(_coerce_category)
 
@@ -121,3 +123,37 @@ class Analysis(_Base):
     numbers: Numbers = Field(default_factory=Numbers)
     number_checks: list[NumberCheck] = Field(default_factory=list)
     quiz: list[QuizItem] = Field(default_factory=list)
+
+
+# ---------- 데이터 파일 (data/*.json) ----------
+
+class GlossEntry(_Base):
+    """data/glossary.json 한 줄. 분야가 목록 밖이면 형식 오류로 보고한다 (임의로 바꾸지 않음)."""
+
+    term: str = Field(min_length=1)
+    category: Category
+    meaning: str = Field(min_length=1)
+    aliases: list[str] = Field(default_factory=list)
+
+
+class RiskRule(_Base):
+    """data/risks.json 한 줄. patterns는 원문에서 찾을 정규식이고, 비어 있으면 AI만 찾을 수 있다."""
+
+    keyword: str = Field(min_length=1)
+    level: Level
+    why: str = Field(min_length=1)
+    patterns: list[str] = Field(default_factory=list)
+    origin: Literal["raw", "prototype"] = "raw"  # raw: 받은 원본, prototype: 프로토타입에서 옮긴 규칙
+
+
+class Sample(_Base):
+    """data/samples/*.json. 모두 가상 자료다."""
+
+    id: str
+    name: str
+    origin: Literal["raw", "prototype"]
+    text: str = Field(min_length=1)
+    verdict: str | None = None  # 프로토타입 샘플만 있음 (LLM 없이 시연용)
+    pairs: list[Pair] = Field(default_factory=list)
+    gold: dict | None = None  # 평가용 정답 (raw 원본 그대로)
+    gold_issues: list[str] = Field(default_factory=list)  # 정답 중 원문에서 확인 안 되는 항목 (평가에서 제외)

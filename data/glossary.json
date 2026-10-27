@@ -1,0 +1,556 @@
+[
+ {
+  "term": "예금",
+  "category": "예적금",
+  "meaning": "목돈을 한 번에 맡기고 나중에 찾는 저축 방식이에요",
+  "aliases": [
+   "정기예금"
+  ]
+ },
+ {
+  "term": "적금",
+  "category": "예적금",
+  "meaning": "매달 일정 금액을 나눠 넣어 모으는 저축 방식이에요",
+  "aliases": [
+   "정기적금"
+  ]
+ },
+ {
+  "term": "자유적립식",
+  "category": "예적금",
+  "meaning": "매달 넣는 금액을 자유롭게 바꿀 수 있는 적금이에요",
+  "aliases": []
+ },
+ {
+  "term": "정액적립식",
+  "category": "예적금",
+  "meaning": "매달 같은 금액을 꼬박꼬박 넣기로 약속한 적금이에요",
+  "aliases": []
+ },
+ {
+  "term": "단리",
+  "category": "예적금",
+  "meaning": "원금에만 이자가 붙는 계산 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "복리",
+  "category": "예적금",
+  "meaning": "이자에도 다시 이자가 붙는 계산 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "만기",
+  "category": "예적금",
+  "meaning": "저축 기간이 끝나 돈을 찾을 수 있는 시점이에요",
+  "aliases": [
+   "만기일"
+  ]
+ },
+ {
+  "term": "중도해지",
+  "category": "예적금",
+  "meaning": "만기 전에 미리 예적금을 깨는 것이에요",
+  "aliases": [
+   "중도해지이율"
+  ]
+ },
+ {
+  "term": "우대금리",
+  "category": "예적금",
+  "meaning": "조건을 채우면 추가로 더 주는 금리예요",
+  "aliases": [
+   "우대이율"
+  ]
+ },
+ {
+  "term": "기본금리",
+  "category": "예적금",
+  "meaning": "조건 없이 기본으로 적용되는 금리예요",
+  "aliases": [
+   "기본이율"
+  ]
+ },
+ {
+  "term": "비과세",
+  "category": "예적금",
+  "meaning": "이자에 세금을 매기지 않는 혜택이에요",
+  "aliases": []
+ },
+ {
+  "term": "예금자보호",
+  "category": "예적금",
+  "meaning": "은행이 망해도 일정 금액까지 보호받는 제도예요",
+  "aliases": [
+   "예금보험"
+  ]
+ },
+ {
+  "term": "변동금리",
+  "category": "예적금",
+  "meaning": "시장 상황에 따라 바뀌는 금리예요",
+  "aliases": []
+ },
+ {
+  "term": "고정금리",
+  "category": "예적금",
+  "meaning": "처음 정한 금리가 끝까지 그대로 유지돼요",
+  "aliases": []
+ },
+ {
+  "term": "원금",
+  "category": "예적금",
+  "meaning": "내가 처음 맡기거나 빌린 돈 자체를 말해요",
+  "aliases": []
+ },
+ {
+  "term": "이자소득세",
+  "category": "예적금",
+  "meaning": "받은 이자에 대해 내는 세금이에요",
+  "aliases": []
+ },
+ {
+  "term": "입출금통장",
+  "category": "예적금",
+  "meaning": "언제든 자유롭게 넣고 뺄 수 있는 통장이에요",
+  "aliases": [
+   "수시입출금"
+  ]
+ },
+ {
+  "term": "예치기간",
+  "category": "예적금",
+  "meaning": "돈을 맡겨두기로 한 기간을 말해요",
+  "aliases": []
+ },
+ {
+  "term": "적용금리",
+  "category": "예적금",
+  "meaning": "실제로 내게 적용되는 최종 금리예요",
+  "aliases": []
+ },
+ {
+  "term": "원리금",
+  "category": "예적금",
+  "meaning": "원금과 이자를 합친 전체 금액이에요",
+  "aliases": []
+ },
+ {
+  "term": "대출",
+  "category": "대출",
+  "meaning": "은행 등에서 돈을 빌리는 것을 말해요",
+  "aliases": []
+ },
+ {
+  "term": "신용대출",
+  "category": "대출",
+  "meaning": "담보 없이 개인 신용만으로 받는 대출이에요",
+  "aliases": []
+ },
+ {
+  "term": "담보대출",
+  "category": "대출",
+  "meaning": "집이나 자산을 맡기고 받는 대출이에요",
+  "aliases": []
+ },
+ {
+  "term": "원리금균등상환",
+  "category": "대출",
+  "meaning": "매달 같은 금액씩 갚아나가는 상환 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "원금균등상환",
+  "category": "대출",
+  "meaning": "매달 원금은 같고 이자가 줄어드는 상환 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "만기일시상환",
+  "category": "대출",
+  "meaning": "이자만 내다가 만기에 원금을 한 번에 갚는 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "거치기간",
+  "category": "대출",
+  "meaning": "원금은 안 갚고 이자만 내는 기간이에요",
+  "aliases": []
+ },
+ {
+  "term": "중도상환수수료",
+  "category": "대출",
+  "meaning": "대출을 만기 전에 미리 갚을 때 내는 수수료예요",
+  "aliases": [
+   "중도상환해약금"
+  ]
+ },
+ {
+  "term": "연체이자",
+  "category": "대출",
+  "meaning": "갚을 날짜를 넘기면 추가로 붙는 이자예요",
+  "aliases": [
+   "연체이율"
+  ]
+ },
+ {
+  "term": "가산금리",
+  "category": "대출",
+  "meaning": "기준금리에 더 붙는 추가 금리를 말해요",
+  "aliases": [
+   "스프레드"
+  ]
+ },
+ {
+  "term": "기준금리",
+  "category": "대출",
+  "meaning": "대출 금리를 정하는 기준이 되는 금리예요",
+  "aliases": []
+ },
+ {
+  "term": "신용점수",
+  "category": "대출",
+  "meaning": "개인의 신용 상태를 숫자로 나타낸 점수예요",
+  "aliases": [
+   "신용등급"
+  ]
+ },
+ {
+  "term": "DSR",
+  "category": "대출",
+  "meaning": "소득 대비 전체 빚 갚는 부담을 보는 비율이에요",
+  "aliases": [
+   "총부채원리금상환비율"
+  ]
+ },
+ {
+  "term": "DTI",
+  "category": "대출",
+  "meaning": "소득 대비 주택대출 갚는 부담을 보는 비율이에요",
+  "aliases": [
+   "총부채상환비율"
+  ]
+ },
+ {
+  "term": "LTV",
+  "category": "대출",
+  "meaning": "담보 가치 대비 빌릴 수 있는 돈의 비율이에요",
+  "aliases": [
+   "담보인정비율"
+  ]
+ },
+ {
+  "term": "대출한도",
+  "category": "대출",
+  "meaning": "내가 빌릴 수 있는 최대 금액이에요",
+  "aliases": []
+ },
+ {
+  "term": "보증인",
+  "category": "대출",
+  "meaning": "대신 갚아줄 것을 약속해주는 사람이에요",
+  "aliases": []
+ },
+ {
+  "term": "연대보증",
+  "category": "대출",
+  "meaning": "빌린 사람과 똑같이 갚을 책임을 지는 보증이에요",
+  "aliases": []
+ },
+ {
+  "term": "햇살론",
+  "category": "대출",
+  "meaning": "서민을 위한 정부 지원 저금리 대출 상품이에요",
+  "aliases": []
+ },
+ {
+  "term": "학자금대출",
+  "category": "대출",
+  "meaning": "등록금이나 생활비를 위해 학생이 받는 대출이에요",
+  "aliases": []
+ },
+ {
+  "term": "대환대출",
+  "category": "대출",
+  "meaning": "기존 대출을 다른 대출로 갈아타는 것이에요",
+  "aliases": [
+   "대출갈아타기"
+  ]
+ },
+ {
+  "term": "상환스케줄",
+  "category": "대출",
+  "meaning": "언제 얼마씩 갚을지 정리한 계획표예요",
+  "aliases": [
+   "상환계획"
+  ]
+ },
+ {
+  "term": "신용카드",
+  "category": "카드",
+  "meaning": "먼저 쓰고 나중에 결제일에 갚는 카드예요",
+  "aliases": []
+ },
+ {
+  "term": "체크카드",
+  "category": "카드",
+  "meaning": "통장 잔액 안에서만 바로 결제되는 카드예요",
+  "aliases": []
+ },
+ {
+  "term": "할부",
+  "category": "카드",
+  "meaning": "결제 금액을 여러 달로 나눠 내는 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "무이자할부",
+  "category": "카드",
+  "meaning": "할부로 사도 추가 이자가 붙지 않는 혜택이에요",
+  "aliases": []
+ },
+ {
+  "term": "리볼빙",
+  "category": "카드",
+  "meaning": "결제금액 일부만 갚고 나머지를 이월하는 서비스예요",
+  "aliases": [
+   "일부결제금액이월약정"
+  ]
+ },
+ {
+  "term": "현금서비스",
+  "category": "카드",
+  "meaning": "신용카드로 현금을 미리 빌려 쓰는 서비스예요",
+  "aliases": [
+   "단기카드대출"
+  ]
+ },
+ {
+  "term": "카드론",
+  "category": "카드",
+  "meaning": "신용카드 회사에서 받는 장기 대출이에요",
+  "aliases": [
+   "장기카드대출"
+  ]
+ },
+ {
+  "term": "연회비",
+  "category": "카드",
+  "meaning": "카드를 쓰는 대가로 매년 내는 비용이에요",
+  "aliases": []
+ },
+ {
+  "term": "결제일",
+  "category": "카드",
+  "meaning": "카드값을 실제로 빠져나가는 날짜예요",
+  "aliases": []
+ },
+ {
+  "term": "이용한도",
+  "category": "카드",
+  "meaning": "카드로 쓸 수 있는 최대 금액이에요",
+  "aliases": [
+   "카드한도"
+  ]
+ },
+ {
+  "term": "포인트적립",
+  "category": "카드",
+  "meaning": "카드 사용 금액의 일부를 포인트로 돌려주는 혜택이에요",
+  "aliases": []
+ },
+ {
+  "term": "캐시백",
+  "category": "카드",
+  "meaning": "사용 금액 일부를 현금처럼 돌려주는 혜택이에요",
+  "aliases": []
+ },
+ {
+  "term": "전월실적",
+  "category": "카드",
+  "meaning": "혜택을 받기 위해 지난달 써야 하는 금액 기준이에요",
+  "aliases": []
+ },
+ {
+  "term": "최소결제금액",
+  "category": "카드",
+  "meaning": "리볼빙에서 이번 달 꼭 갚아야 하는 최소 금액이에요",
+  "aliases": []
+ },
+ {
+  "term": "단기카드대출",
+  "category": "카드",
+  "meaning": "신용카드로 짧게 빌리는 현금 대출이에요",
+  "aliases": [
+   "현금서비스"
+  ]
+ },
+ {
+  "term": "부가서비스",
+  "category": "카드",
+  "meaning": "카드에 딸린 할인이나 포인트 같은 추가 혜택이에요",
+  "aliases": []
+ },
+ {
+  "term": "카드해지",
+  "category": "카드",
+  "meaning": "더 이상 카드를 쓰지 않도록 계약을 끝내는 것이에요",
+  "aliases": []
+ },
+ {
+  "term": "신용공여기간",
+  "category": "카드",
+  "meaning": "카드를 쓰고 실제 결제일까지 미뤄지는 기간이에요",
+  "aliases": []
+ },
+ {
+  "term": "금융소비자보호",
+  "category": "기타",
+  "meaning": "금융 상품 이용자의 권리를 지켜주는 제도예요",
+  "aliases": []
+ },
+ {
+  "term": "약관",
+  "category": "기타",
+  "meaning": "금융상품 이용 시 지켜야 할 세부 규칙 문서예요",
+  "aliases": []
+ },
+ {
+  "term": "상품설명서",
+  "category": "기타",
+  "meaning": "상품의 조건과 주의사항을 정리한 안내 문서예요",
+  "aliases": []
+ },
+ {
+  "term": "청약철회",
+  "category": "기타",
+  "meaning": "일정 기간 안에 계약을 없던 일로 할 수 있는 권리예요",
+  "aliases": []
+ },
+ {
+  "term": "공시이율",
+  "category": "기타",
+  "meaning": "금융사가 공개적으로 알려주는 적용 금리예요",
+  "aliases": []
+ },
+ {
+  "term": "수수료",
+  "category": "기타",
+  "meaning": "서비스 이용 대가로 내는 비용이에요",
+  "aliases": []
+ },
+ {
+  "term": "자동이체",
+  "category": "기타",
+  "meaning": "정해진 날짜에 자동으로 돈이 빠져나가는 설정이에요",
+  "aliases": []
+ },
+ {
+  "term": "영업점",
+  "category": "기타",
+  "meaning": "금융사의 오프라인 지점을 말해요",
+  "aliases": [
+   "지점"
+  ]
+ },
+ {
+  "term": "공동인증서",
+  "category": "기타",
+  "meaning": "온라인 금융 거래 시 본인 확인용 전자 인증서예요",
+  "aliases": [
+   "공인인증서"
+  ]
+ },
+ {
+  "term": "비대면",
+  "category": "기타",
+  "meaning": "직접 방문하지 않고 온라인으로 처리하는 방식이에요",
+  "aliases": []
+ },
+ {
+  "term": "신용정보",
+  "category": "기타",
+  "meaning": "대출·연체 등 개인의 금융 이력 정보예요",
+  "aliases": []
+ },
+ {
+  "term": "서민금융진흥원",
+  "category": "기타",
+  "meaning": "서민을 위한 금융 지원을 돕는 공공기관이에요",
+  "aliases": [
+   "서금원"
+  ]
+ },
+ {
+  "term": "금융감독원",
+  "category": "기타",
+  "meaning": "금융회사를 감독하고 소비자를 보호하는 기관이에요",
+  "aliases": [
+   "금감원"
+  ]
+ },
+ {
+  "term": "예대마진",
+  "category": "기타",
+  "meaning": "은행이 예금금리와 대출금리 차이로 얻는 수익이에요",
+  "aliases": []
+ },
+ {
+  "term": "신용회복",
+  "category": "기타",
+  "meaning": "연체 등으로 나빠진 신용을 다시 회복하는 과정이에요",
+  "aliases": [
+   "신용회복위원회"
+  ]
+ },
+ {
+  "term": "개인워크아웃",
+  "category": "기타",
+  "meaning": "빚을 갚기 어려운 사람의 채무를 조정해주는 제도예요",
+  "aliases": []
+ },
+ {
+  "term": "압류",
+  "category": "기타",
+  "meaning": "빚을 안 갚으면 재산 처분이 제한되는 조치예요",
+  "aliases": []
+ },
+ {
+  "term": "보이스피싱",
+  "category": "기타",
+  "meaning": "전화나 문자로 속여 돈을 뜯어내는 금융 사기예요",
+  "aliases": []
+ },
+ {
+  "term": "공제",
+  "category": "기타",
+  "meaning": "일정 금액이나 비율을 빼고 계산하는 것이에요",
+  "aliases": []
+ },
+ {
+  "term": "비교공시",
+  "category": "기타",
+  "meaning": "여러 금융사의 상품 조건을 비교해 보여주는 정보예요",
+  "aliases": []
+ },
+ {
+  "term": "금융교육",
+  "category": "기타",
+  "meaning": "올바른 금융 이용 습관을 배우는 교육이에요",
+  "aliases": []
+ },
+ {
+  "term": "전자금융사기",
+  "category": "기타",
+  "meaning": "온라인으로 돈이나 개인정보를 가로채는 범죄예요",
+  "aliases": []
+ },
+ {
+  "term": "신용대출한도조회",
+  "category": "대출",
+  "meaning": "내가 받을 수 있는 대출 가능 금액을 미리 보는 것이에요",
+  "aliases": [
+   "한도조회"
+  ]
+ }
+]

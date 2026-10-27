@@ -4,6 +4,7 @@ from streamlit.testing.v1 import AppTest
 
 import config
 from core import llm
+from core.glossary import load_glossary
 from core.mdsafe import esc
 from core.samples import load_samples
 from tests.fakes import DOC, GOOD, FakeProvider, cut, reply
@@ -149,3 +150,69 @@ def test_ai_cut_answer_shows_notice(monkeypatch):
     at = _ai_click(_app(), DOC)
     assert not at.exception
     assert any("응답이 길어 일부가 생략됐어요" in m.value for m in at.info)
+
+
+# ---------- 퀴즈 (사전으로만 출제, LLM 없음) ----------
+
+def _quiz_radios(at: AppTest):
+    return [r for r in at.radio if r.key and r.key.startswith("quiz")]
+
+
+def _score(at: AppTest) -> str:
+    return next(m.value for m in at.markdown if "이번 문제" in m.value).replace("**", "")
+
+
+def _answer_all(at: AppTest, correct: bool) -> AppTest:
+    """세션의 퀴즈 정답을 보고 모두 맞히거나 모두 틀린다."""
+    for i, q in enumerate(at.session_state.quiz):
+        r = _quiz_radios(at)[i]
+        r.set_value(q.answer if correct else (q.answer + 1) % len(q.options)).run()
+    return at
+
+
+def test_quiz_shows_three_questions_from_dictionary():
+    at = _app()
+    at.selectbox[0].select("학자금 대출 안내").run()
+    assert len(_quiz_radios(at)) == 3
+    meanings = {e.meaning for e in load_glossary().entries}
+    for q in at.session_state.quiz:
+        assert set(q.options) <= meanings
+
+
+def test_quiz_answer_feedback_score_and_understanding():
+    at = _app()
+    at.selectbox[0].select("학자금 대출 안내").run()
+    first = at.session_state.quiz[0]
+    _quiz_radios(at)[0].set_value(first.answer).run()
+    assert any(s.value.startswith("정답이에요.") for s in at.success)
+    assert _quiz_radios(at)[0].disabled  # 고른 답은 바꿀 수 없다 (처음 답만 센다)
+    _quiz_radios(at)[1].set_value((at.session_state.quiz[1].answer + 1) % 3).run()
+    assert any(e.value.startswith("아쉬워요. 정답은") for e in at.error)
+    assert "이번 문제 1/3" in _score(at)
+    stats = at.session_state.quiz_stats
+    assert sum(t for _, t in stats.values()) == 2 and sum(c for c, _ in stats.values()) == 1
+
+
+def test_quiz_retry_makes_new_round_and_keeps_session_totals():
+    at = _app()
+    at.selectbox[0].select("학자금 대출 안내").run()
+    _answer_all(at, correct=True)
+    assert _score(at) == "이번 문제 3/3 · 이 문서 누적 3/3"
+    next(b for b in at.button if b.label == "다시 풀기").click().run()
+    assert all(r.value is None and not r.disabled for r in _quiz_radios(at))
+    _answer_all(at, correct=False)
+    assert _score(at) == "이번 문제 0/3 · 이 문서 누적 3/6"
+    assert sum(t for _, t in at.session_state.quiz_stats.values()) == 6
+
+
+def test_understanding_bars_accumulate_across_documents():
+    at = _app()
+    at.selectbox[0].select("학자금 대출 안내").run()
+    _answer_all(at, correct=True)
+    at.selectbox[0].select("대학생 카드 안내").run()
+    _answer_all(at, correct=False)
+    stats = at.session_state.quiz_stats
+    assert sum(t for _, t in stats.values()) == 6  # 문서를 바꿔도 세션 안에서 누적
+    assert len(at.session_state.doc_scores) == 2
+    texts = [p.proto.text for p in at.get("progress")]
+    assert any(t.startswith("대출 · ") and "정답" in t for t in texts)

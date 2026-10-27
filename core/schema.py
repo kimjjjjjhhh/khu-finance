@@ -80,6 +80,7 @@ class QuizItem(_Base):
     answer: int = Field(ge=0)
     why: str = ""
     category: Category = "기타"
+    from_doc: bool = True  # False면 문서에 없는 용어로 채운 문제 (같은 분야 학습용)
 
     coerce_category = field_validator("category", mode="before")(_coerce_category)
 

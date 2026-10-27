@@ -167,8 +167,8 @@ def analyze_ai(
         risks=verify_risks(parsed.risks, text),
         numbers=parsed.numbers,
         number_checks=check_numbers(parsed.numbers, text),
-        # 퀴즈는 토큰을 아끼려고 규칙 기반 생성기로 만든다. 원문에서 확인된 용어만 쓴다
-        quiz=make_quiz([t for t in terms if t.found], glossary, rng=rng),
+        # 퀴즈는 LLM 없이 사전으로 만든다. 원문에서 확인된 용어 중 사전에 있는 것만, 뜻도 사전 것을 쓴다
+        quiz=make_quiz([t for t in terms if t.found], glossary, parsed.doc_type, rng=rng),
         truncated=prompt.truncated,
         partial=partial,
         prompt_tokens=usage.prompt_tokens,

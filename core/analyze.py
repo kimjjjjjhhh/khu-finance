@@ -48,7 +48,7 @@ def analyze_rule(
         risks=risks.find(text),
         numbers=numbers,
         number_checks=check_numbers(numbers, text),
-        quiz=make_quiz(terms, glossary, rng=rng),
+        quiz=make_quiz(terms, glossary, kind, rng=rng),
     )
 
 

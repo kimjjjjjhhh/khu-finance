@@ -12,6 +12,7 @@ from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
 from core.highlight import highlight_html
 from core.mdsafe import esc
+from core.quiz import make_quiz, new_stats, tally
 from core.glossary import load_glossary
 from core.risks import load_risks
 from core.samples import load_samples
@@ -38,6 +39,13 @@ ss.setdefault("analysis", None)
 ss.setdefault("run", 0)  # 분석할 때마다 늘려서 계산기 입력칸을 새 값으로 초기화한다
 ss.setdefault("ai_cache", {})  # 문서 해시 -> AI 결과. 같은 문서를 다시 눌러도 LLM을 또 부르지 않는다 (크레딧 절약)
 ss.setdefault("from_cache", False)
+# 퀴즈: 이번 세션 안에서만 누적한다 (저장은 다음 단계)
+ss.setdefault("quiz", [])
+ss.setdefault("quiz_run", -1)  # 지금 퀴즈를 만든 분석 번호
+ss.setdefault("quiz_round", 0)  # '다시 풀기'마다 늘린다
+ss.setdefault("quiz_answered", {})  # 문항 키 -> 고른 보기
+ss.setdefault("quiz_stats", new_stats())  # 분야 -> [맞은 수, 푼 수]
+ss.setdefault("doc_scores", {})  # 문서 해시 -> {name, correct, total}
 
 
 def _doc_text() -> str | None:
@@ -268,6 +276,90 @@ if a.pairs:
         st.divider()
 else:
     st.caption("문장별 통역은 ‘AI로 통역하기’를 쓸 때 만들어져요. 지금은 프로토타입 예시 문서 3종에서 볼 수 있어요.")
+
+# ---------- 퀴즈 (사전 용어로만, LLM 안 씀) ----------
+def doc_name(a: Analysis) -> str:
+    s = next((x for x in samples if x.text.strip() == a.text.strip()), None)
+    if s:
+        return s.name
+    line = next((ln.strip() for ln in a.text.splitlines() if ln.strip() and ln.strip() != "[가상 자료]"), "문서")
+    return line[:20] + ("…" if len(line) > 20 else "")
+
+
+def answer(key: str, i: int, doc_key: str, name: str) -> None:
+    choice = ss[key]
+    if choice is None or key in ss.quiz_answered:  # 한 문제는 처음 고른 답만 센다
+        return
+    ss.quiz_answered[key] = choice
+    ok = tally(ss.quiz_stats, ss.quiz[i], choice)
+    d = ss.doc_scores.setdefault(doc_key, {"name": name, "correct": 0, "total": 0})
+    d["correct"] += ok
+    d["total"] += 1
+
+
+def retry_quiz(a: Analysis) -> None:
+    ss.quiz = make_quiz([t for t in a.terms if t.found], glossary, a.kind)
+    ss.quiz_round += 1
+
+
+def show_quiz(a: Analysis) -> None:
+    if ss.quiz_run != ss.run:  # 새로 분석한 문서면 그 결과의 퀴즈로 바꾼다
+        ss.quiz, ss.quiz_run, ss.quiz_round = list(a.quiz), ss.run, 0
+    if not ss.quiz:
+        st.caption("사전에 용어가 없어 퀴즈를 만들 수 없어요.")
+        return
+    doc_key = hashlib.sha256(a.text.encode("utf-8")).hexdigest()
+    name = doc_name(a)
+    prefix = f"quiz{ss.run}_{ss.quiz_round}_"
+
+    for i, q in enumerate(ss.quiz):
+        key = f"{prefix}{i}"
+        done = key in ss.quiz_answered
+        st.radio(f"{i + 1}. {esc(q.q)}", list(range(len(q.options))), index=None, key=key,
+                 format_func=lambda k, q=q: esc(q.options[k]), disabled=done,
+                 on_change=answer, args=(key, i, doc_key, name))
+        if not q.from_doc:
+            st.caption("이 문서에는 없지만 같은 분야 용어예요")
+        if done:
+            if ss.quiz_answered[key] == q.answer:
+                st.success(f"정답이에요. {esc(q.why)}")
+            else:
+                st.error(f"아쉬워요. 정답은 ‘{esc(q.options[q.answer])}’예요. {esc(q.why)}")
+
+    answered = [ss.quiz_answered[k] == q.answer for i, q in enumerate(ss.quiz)
+                if (k := f"{prefix}{i}") in ss.quiz_answered]
+    d = ss.doc_scores.get(doc_key)
+    c1, c2 = st.columns([3, 1])
+    c1.markdown(f"**이번 문제 {sum(answered)}/{len(ss.quiz)}**"
+                + (f" · 이 문서 누적 {d['correct']}/{d['total']}" if d else ""))
+    c2.button("다시 풀기", on_click=retry_quiz, args=(a,), width="stretch",
+              help="같은 문서로 문제를 새로 만들어요 (AI 안 씀)")
+
+
+def show_understanding() -> None:
+    for cat in ("예적금", "대출", "카드", "기타"):
+        right, total = ss.quiz_stats.get(cat, [0, 0])
+        if cat == "기타" and total == 0:
+            continue
+        if total:
+            st.progress(right / total, text=f"{cat} · {right}/{total} 정답 ({right / total:.0%})")
+        else:
+            st.progress(0.0, text=f"{cat} · 아직 푼 문제가 없어요")
+    if ss.doc_scores:
+        with st.expander("이번 세션 문서별 점수"):
+            for d in ss.doc_scores.values():
+                st.markdown(f"- {esc(d['name'])} · {d['correct']}/{d['total']}")
+    st.caption("이번 세션에서만 쌓여요. 새로고침하면 사라져요.")
+
+
+st.subheader("읽은 만큼 확인하기")
+qcol, ucol = st.columns([1.4, 1], gap="large")
+with qcol:
+    show_quiz(a)
+with ucol:
+    st.markdown("**나의 이해도 (분야별 정답률)**")
+    show_understanding()
+
 
 st.divider()
 st.caption(DISCLAIMER)

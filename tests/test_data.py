@@ -55,3 +55,15 @@ def test_missing_files_fall_back_to_prototype(tmp_path):
     assert load_glossary(empty).from_fallback
     assert load_risks(empty).from_fallback
     assert [x.id for x in load_samples(tmp_path)] == ["p1", "p2", "p3"]
+
+
+def test_text_sample_drops_answer_key_and_is_not_in_app_list(tmp_path):
+    from core.samples import load_samples, load_text_sample
+    f = tmp_path / "long.txt"
+    f.write_text('긴 약관\n[가상 자료]\n제1조 본문입니다.\njson\n\n{"months": 48}\n', encoding="utf-8")
+    (tmp_path / "a.json").write_text('{"id": "a", "name": "A", "origin": "raw", "text": "[가상 자료] 본문"}',
+                                     encoding="utf-8")
+    s = load_text_sample(f)
+    assert (s.id, s.name, s.text) == ("long", "긴 약관", "[가상 자료]\n제1조 본문입니다.")
+    assert s.gold is None  # 정답은 읽지 않는다 (평가에 넣지 않음)
+    assert [x.id for x in load_samples(tmp_path)] == ["a"]  # 앱 목록은 .json만

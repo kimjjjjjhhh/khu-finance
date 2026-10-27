@@ -15,9 +15,10 @@ SECRET = "sk-test-SECRET-should-never-appear"
 class FakeClient:
     """openai.OpenAI의 chat.completions.create 모양만 흉내 낸다."""
 
-    def __init__(self, content="{}", usage=(120, 30), error=None):
+    def __init__(self, content="{}", usage=(120, 30), error=None, finish_reason="stop"):
         self.calls = []
         self._content, self._usage, self._error = content, usage, error
+        self._finish = finish_reason
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **kwargs):
@@ -25,7 +26,7 @@ class FakeClient:
         if self._error:
             raise self._error
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=self._content))],
+            choices=[SimpleNamespace(message=SimpleNamespace(content=self._content), finish_reason=self._finish)],
             usage=SimpleNamespace(prompt_tokens=self._usage[0], completion_tokens=self._usage[1]),
         )
 
@@ -49,6 +50,7 @@ def test_usage_is_logged_without_key_or_text():
     OpenAICompatProvider(SECRET, client=FakeClient(content="문서 본문 비밀", usage=(7, 3))).complete("s", "u")
     line = json.loads(config.USAGE_LOG_PATH.read_text(encoding="utf-8").strip())
     assert line["prompt_tokens"] == 7 and line["completion_tokens"] == 3 and line["total_tokens"] == 10
+    assert line["finish_reason"] == "stop"
     raw = config.USAGE_LOG_PATH.read_text(encoding="utf-8")
     assert SECRET not in raw and "문서 본문" not in raw
 
@@ -81,3 +83,16 @@ def test_real_client_is_blocked_in_tests(monkeypatch):
     monkeypatch.setenv("CHATKHU_API_KEY", SECRET)
     with pytest.raises(AssertionError):
         get_provider()
+
+
+def test_finish_reason_length_is_passed_on():
+    r = OpenAICompatProvider(SECRET, client=FakeClient(content='{"verdict": "잘', finish_reason="length")).complete("s", "u")
+    assert r.finish_reason == "length"
+    assert json.loads(config.USAGE_LOG_PATH.read_text(encoding="utf-8"))["finish_reason"] == "length"
+
+
+def test_max_tokens_comes_from_config(monkeypatch):
+    monkeypatch.setattr(config, "LLM_MAX_TOKENS", 1234)
+    client = FakeClient()
+    OpenAICompatProvider(SECRET, client=client).complete("s", "u")
+    assert client.calls[0]["max_tokens"] == 1234

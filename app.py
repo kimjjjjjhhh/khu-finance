@@ -3,10 +3,14 @@
 화면만 담당한다. 분석, 계산, 검증 로직은 전부 core/에 있다.
 실행: streamlit run app.py
 """
+import hashlib
+
 import streamlit as st
 
-from core import calc
+from core import calc, llm
+from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
+from core.highlight import highlight_html
 from core.glossary import load_glossary
 from core.risks import load_risks
 from core.samples import load_samples
@@ -31,16 +35,41 @@ ss = st.session_state
 ss.setdefault("doc", "")
 ss.setdefault("analysis", None)
 ss.setdefault("run", 0)  # 분석할 때마다 늘려서 계산기 입력칸을 새 값으로 초기화한다
+ss.setdefault("ai_cache", {})  # 문서 해시 -> AI 결과. 같은 문서를 다시 눌러도 LLM을 또 부르지 않는다 (크레딧 절약)
+ss.setdefault("from_cache", False)
 
 
-def run_analysis() -> None:
+def _doc_text() -> str | None:
     text = ss.doc.strip()
     if not text:
         ss.analysis = None
         ss.error = "통역할 문서를 먼저 붙여넣어 주세요."
-        return
+        return None
     ss.error = None
+    return text
+
+
+def run_analysis() -> None:
+    if (text := _doc_text()) is None:
+        return
     ss.analysis = analyze_rule(text, glossary, risks, samples)
+    ss.from_cache = False
+    ss.run += 1
+
+
+def run_ai() -> None:
+    if (text := _doc_text()) is None:
+        return
+    key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    cached = ss.ai_cache.get(key)
+    if cached is None:
+        with st.spinner("AI가 통역하고 있어요..."):
+            result = analyze_ai(text, llm.get_provider(), glossary, risks, samples)
+        if result.source == "ai":  # 실패한 결과는 저장하지 않아야 다시 눌러 재시도할 수 있다
+            ss.ai_cache[key] = result
+        ss.analysis, ss.from_cache = result, False
+    else:
+        ss.analysis, ss.from_cache = cached, True
     ss.run += 1
 
 
@@ -70,14 +99,16 @@ with st.container(border=True):
     st.text_area("통역할 문서", key="doc", height=200,
                  placeholder="대출 안내문, 카드 혜택, 예·적금 약관 등을 붙여넣으세요. 문서는 저장되지 않아요.")
     c1, c2, _ = st.columns([1, 1, 4])
-    c1.button("빠른 분석", type="primary", on_click=run_analysis, width="stretch")
-    c2.button("AI로 통역하기", disabled=True, help="2일차에 연결합니다", width="stretch")
+    c1.button("빠른 분석", on_click=run_analysis, width="stretch", help="사전과 규칙으로 바로 분석해요 (AI 안 씀)")
+    if c2.button("AI로 통역하기", type="primary", width="stretch",
+                 help="문장별 쉬운 말 통역까지 만들어요. 키가 없거나 실패하면 규칙 기반 모드로 바뀌어요"):
+        run_ai()
     if ss.get("error"):
         st.warning(ss.error)
 
 a: Analysis | None = ss.analysis
 if a is None:
-    st.markdown("위에서 예시 문서를 고르거나 문서를 붙여넣고 **빠른 분석**을 눌러 보세요.")
+    st.markdown("위에서 예시 문서를 고르거나 문서를 붙여넣고 **AI로 통역하기** 또는 **빠른 분석**을 눌러 보세요.")
     st.divider()
     st.caption(DISCLAIMER)
     st.stop()
@@ -146,37 +177,54 @@ def show_calculator(a: Analysis) -> None:
         st.caption("이 사용 패턴에서는 " + ("연회비가 더 커요." if res.net < 0 else "할인이 연회비보다 커요."))
 
 
+
+UNVERIFIED = "⚠ 원문에서 확인 안 됨"
+
+# ---------- 결과: 상태 표시 ----------
+if a.source == "ai":
+    st.caption("AI 통역" + (" · 저장된 결과" if ss.from_cache else ""))
+else:
+    st.markdown("**규칙 기반 모드** · 사전과 규칙으로 분석했어요. 문장별 통역은 AI 모드에서 만들어져요.")
+    if a.fallback_reason:
+        st.warning(f"AI 통역 대신 규칙 기반 모드로 보여 드려요: {a.fallback_reason}")
+if a.partial:
+    st.info("응답이 길어 일부가 생략됐어요. 끝까지 받은 부분만 보여 드려요.")
+if a.truncated:
+    st.info("문서가 길어서 앞부분만 AI에 보냈어요. 뒷부분은 원문을 직접 확인하세요.")
+
 left, right = st.columns([1.2, 1], gap="large")
 
 with left:
     st.subheader("한 줄 통역")
-    badge = "AI 통역" if a.source == "ai" else "규칙 기반 분석"
-    st.caption(badge + (f" · {a.fallback_reason}" if a.fallback_reason else ""))
     st.markdown(f"#### {a.verdict}")
+
+    st.subheader("원문")
+    with st.container(border=True):
+        st.html(highlight_html(ss.doc, a.terms, a.risks))
 
     st.subheader("이 문서의 용어")
     if a.terms:
         for t in a.terms:
-            st.markdown(f"- **{t.term}** ({t.category}) · {t.meaning}")
+            st.markdown(f"- **{t.term}** ({t.category}) · {t.meaning}" + ("" if t.found else f" · {UNVERIFIED}"))
     else:
         st.caption("사전에 있는 용어를 찾지 못했어요.")
-
-    with st.expander("원문 보기"):
-        st.text(ss.doc)
 
 with right:
     st.subheader("조심할 조항")
     if a.risks:
         for x in a.risks:
+            note = "" if x.found else f"  \n{UNVERIFIED} · AI가 쓴 인용이 원문에 없어요"
             (st.error if x.level == "high" else st.warning)(
-                f"**{'주의' if x.level == 'high' else '확인'} · {x.phrase}**  \n{x.why}")
+                f"**{'주의' if x.level == 'high' else '확인'} · {x.phrase}**  \n{x.why}{note}")
     else:
         st.success("눈에 띄는 불리한 조항을 찾지 못했어요. 그래도 원문을 끝까지 읽어 보세요.")
 
     st.subheader("읽어 낸 숫자")
     if a.number_checks:
-        st.table([{"항목": c.label, "값": f"{c.value:g}", "원문 확인": "확인됨" if c.found else "⚠ 원문에서 확인 안 됨"}
+        st.table([{"항목": c.label, "값": f"{c.value:g}", "원문 확인": "확인됨" if c.found else UNVERIFIED}
                   for c in a.number_checks])
+        if not all(c.found for c in a.number_checks):
+            st.caption("원문에서 확인 안 된 숫자는 계산기에 자동으로 넣지 않았어요.")
     else:
         st.caption("문서에서 숫자를 찾지 못했어요. 계산기에 직접 넣어 보세요.")
 
@@ -192,7 +240,7 @@ if a.pairs:
     h2.caption("일상어 · 통역")
     for p in a.pairs:
         c1, c2 = st.columns(2)
-        c1.markdown(p.original)
+        c1.markdown(p.original + ("" if p.found else f"  \n:orange[{UNVERIFIED}]"))
         c2.markdown(f"**{p.easy}**")
         st.divider()
 else:
@@ -200,3 +248,9 @@ else:
 
 st.divider()
 st.caption(DISCLAIMER)
+if a.prompt_tokens or a.completion_tokens:
+    used = "저장된 결과라 이번에 추가로 쓴 토큰은 없어요 · " if ss.from_cache else ""
+    st.caption(f"{used}이번 통역에 쓴 토큰 {a.prompt_tokens + a.completion_tokens:,}개 "
+               f"(입력 {a.prompt_tokens:,} · 출력 {a.completion_tokens:,})")
+else:
+    st.caption("이번 분석에 쓴 토큰 0개 (규칙 기반)")

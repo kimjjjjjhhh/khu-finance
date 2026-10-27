@@ -30,6 +30,7 @@ class Usage:
 class LLMResponse:
     text: str
     usage: Usage
+    finish_reason: str = "stop"  # length면 max_tokens에 걸려 답이 중간에 잘린 것
 
 
 class LLMError(Exception):
@@ -46,7 +47,7 @@ class LLMProvider(Protocol):
     def complete(self, system: str, user: str) -> LLMResponse: ...
 
 
-def log_usage(model: str, usage: Usage, path: Path | None = None) -> None:
+def log_usage(model: str, usage: Usage, finish_reason: str = "", path: Path | None = None) -> None:
     """토큰 수만 남긴다. 로그를 못 써도 통역은 계속돼야 하므로 오류는 삼킨다."""
     path = path or config.USAGE_LOG_PATH
     line = {
@@ -55,6 +56,7 @@ def log_usage(model: str, usage: Usage, path: Path | None = None) -> None:
         "prompt_tokens": usage.prompt_tokens,
         "completion_tokens": usage.completion_tokens,
         "total_tokens": usage.total,
+        "finish_reason": finish_reason,
     }
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,11 +106,13 @@ class OpenAICompatProvider:
 
         u = resp.usage
         usage = Usage(getattr(u, "prompt_tokens", 0) or 0, getattr(u, "completion_tokens", 0) or 0)
-        log_usage(self.model, usage)
-        text = (resp.choices[0].message.content or "") if resp.choices else ""
+        choice = resp.choices[0] if resp.choices else None
+        finish = (getattr(choice, "finish_reason", None) or "stop") if choice else "stop"
+        log_usage(self.model, usage, finish)
+        text = (choice.message.content or "") if choice else ""
         if not text.strip():
             raise LLMError("empty", "AI가 빈 답을 보냈어요")
-        return LLMResponse(text=text, usage=usage)
+        return LLMResponse(text=text, usage=usage, finish_reason=finish)
 
 
 def get_provider() -> LLMProvider | None:

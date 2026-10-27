@@ -26,7 +26,7 @@ MAX_DOC_CHARS = 6000
 
 # LLM 호출 설정
 LLM_TIMEOUT_SEC = 60
-LLM_MAX_TOKENS = 3000  # 응답 JSON 길이 상한 (크레딧 절약)
+LLM_MAX_TOKENS = 4000  # 응답 길이 상한. 쓴 만큼만 과금되므로 잘림 방지에 여유를 둔다 (p1 실측 출력 2,794)
 LLM_TEMPERATURE = 0.2
 
 

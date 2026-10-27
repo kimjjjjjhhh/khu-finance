@@ -31,6 +31,8 @@ class Term(_Base):
     category: Category = "기타"
     # 원문에 실제로 나온 표기들 (예: term='전월실적', surfaces=['전월 실적']). 하이라이트에 쓴다
     surfaces: list[str] = Field(default_factory=list)
+    # 원문 대조 결과 (환각 방지). AI가 쓴 인용이 원문에 없으면 False로 바꾸고 화면에 경고한다
+    found: bool = True
 
     coerce_category = field_validator("category", mode="before")(_coerce_category)
 
@@ -39,6 +41,8 @@ class Risk(_Base):
     phrase: str = Field(min_length=1)
     why: str = Field(min_length=1)
     level: Level = "mid"
+    # 원문 대조 결과 (환각 방지). AI가 쓴 인용이 원문에 없으면 False로 바꾸고 화면에 경고한다
+    found: bool = True
 
     @field_validator("level", mode="before")
     @classmethod
@@ -49,6 +53,8 @@ class Risk(_Base):
 class Pair(_Base):
     original: str = Field(min_length=1)
     easy: str = Field(min_length=1)
+    # 원문 대조 결과 (환각 방지). AI가 쓴 인용이 원문에 없으면 False로 바꾸고 화면에 경고한다
+    found: bool = True
 
 
 class Rate(_Base):
@@ -123,6 +129,11 @@ class Analysis(_Base):
     numbers: Numbers = Field(default_factory=Numbers)
     number_checks: list[NumberCheck] = Field(default_factory=list)
     quiz: list[QuizItem] = Field(default_factory=list)
+    truncated: bool = False  # 문서가 길어 앞부분만 AI에 보냈는지
+    partial: bool = False  # AI 답이 max_tokens에 걸려 잘려서, 살릴 수 있는 부분만 썼는지
+    # 이번 통역에 쓴 토큰 (재시도 포함 합계). 규칙 기반이면 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 
 # ---------- 데이터 파일 (data/*.json) ----------

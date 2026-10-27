@@ -1,0 +1,17 @@
+# 가상환경, 캐시
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 로컬 DB (용어장, 퀴즈 기록)
+*.db
+*.sqlite3
+
+# 비밀값: 키는 환경변수로만 쓰지만, 실수로 만든 파일도 올라가지 않게 막는다
+.env
+.env.*
+.streamlit/secrets.toml
+
+# 개인 캡처 이미지
+캡쳐본/

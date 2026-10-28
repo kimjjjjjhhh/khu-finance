@@ -17,6 +17,9 @@ class _NoNetworkClient:
 @pytest.fixture(autouse=True)
 def _no_real_llm(monkeypatch, tmp_path):
     monkeypatch.delenv("CHATKHU_API_KEY", raising=False)
+    monkeypatch.delenv("CHATKHU_BASE_URL", raising=False)
+    # 개발 PC에 .streamlit/secrets.toml이 있어도 테스트가 진짜 키를 읽지 않게 막는다
+    monkeypatch.setattr(config, "_secret", lambda name: None)
     monkeypatch.setattr(openai, "OpenAI", _NoNetworkClient)
     monkeypatch.setattr(config, "USAGE_LOG_PATH", tmp_path / "llm_usage.log")
     # 실제 data/precomputed/ 파일이 생겨도 테스트 결과가 바뀌지 않게 빈 폴더를 쓴다

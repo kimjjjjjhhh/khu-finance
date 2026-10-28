@@ -1,4 +1,4 @@
-streamlit>=1.40
-openai>=1.40
-pydantic>=2.7
-pytest>=8.0
+# 앱 실행에 필요한 패키지 (배포 서버도 이 파일로 설치한다). 테스트 도구는 requirements-dev.txt
+streamlit==1.66.1
+openai==3.39.0
+pydantic==2.14.1

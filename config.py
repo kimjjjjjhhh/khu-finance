@@ -1,6 +1,7 @@
 """앱 전체에서 쓰는 상수.
 
-API 키는 여기에 적지 않는다. 환경변수 CHATKHU_API_KEY에서 실행할 때만 읽는다.
+API 키는 여기에 적지 않는다. 실행할 때 환경변수 CHATKHU_API_KEY를 먼저 읽고,
+없으면 st.secrets(배포 서버의 비밀 값 설정 또는 로컬 .streamlit/secrets.toml)에서 읽는다.
 """
 import os
 from pathlib import Path
@@ -35,11 +36,25 @@ AI_SESSION_LIMIT = 5  # 브라우저 세션 하나당
 AI_DAILY_LIMIT = 150  # 서버 전체 하루 (서버를 다시 시작하면 0부터)
 
 
+def _secret(name: str) -> str | None:
+    """st.secrets 값. 비밀 값 파일이 없거나 Streamlit 밖(스크립트)에서 실행하면 None."""
+    try:
+        import streamlit as st
+
+        value = st.secrets.get(name)
+    except Exception:  # 비밀 값 파일 없음, 형식 오류 등. 내용은 메시지에 섞일 수 있어 다루지 않는다
+        return None
+    return str(value).strip() or None if value is not None else None
+
+
+def _setting(name: str) -> str | None:
+    return os.environ.get(name, "").strip() or _secret(name)
+
+
 def base_url() -> str:
-    return os.environ.get("CHATKHU_BASE_URL") or DEFAULT_BASE_URL
+    return _setting("CHATKHU_BASE_URL") or DEFAULT_BASE_URL
 
 
 def api_key() -> str | None:
     """키가 없으면 None. 값은 절대 출력하거나 저장하지 않는다."""
-    key = os.environ.get("CHATKHU_API_KEY", "").strip()
-    return key or None
+    return _setting("CHATKHU_API_KEY")

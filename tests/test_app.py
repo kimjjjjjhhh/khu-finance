@@ -229,3 +229,45 @@ def test_char_count_and_truncation_notice(monkeypatch):
     at = _ai_click(at, DOC)
     assert "30자를 넘어서 AI 통역은 앞부분 30자만 해요" in _captions(at)
     assert any("앞부분 30자만 통역했어요" in w.value for w in at.warning)
+
+
+# ---------- 용어장 (사이드바, 세션 누적) ----------
+
+def _wordbook(at: AppTest) -> list[str]:
+    return [m.value for m in at.sidebar.markdown]
+
+
+def test_wordbook_empty_then_accumulates_across_documents():
+    at = _app()
+    assert any("아직 모은 용어가 없어요" in c.value for c in at.sidebar.caption)
+    at.selectbox[0].select("학자금 대출 안내").run()
+    n_loan = len(at.session_state.wordbook)
+    assert n_loan > 0
+    at.selectbox[0].select("대학생 카드 안내").run()
+    assert len(at.session_state.wordbook) > n_loan  # 문서를 바꿔도 세션 안에서 계속 쌓인다
+    assert any("만난 문서: 대학생 카드 안내" in c.value for c in at.sidebar.caption)
+
+
+def test_wordbook_category_filter():
+    at = _app()
+    at.selectbox[0].select("학자금 대출 안내").run()
+    at.selectbox[0].select("대학생 카드 안내").run()
+    at.sidebar.radio(key="wb_filter").set_value("카드").run()
+    assert _wordbook(at) and all(" · 카드" in m for m in _wordbook(at))
+    at.sidebar.radio(key="wb_filter").set_value("기타").run()
+    shown = _wordbook(at)
+    assert all(" · 기타" in m for m in shown)
+
+
+def test_wordbook_marks_ai_meaning_unverified(monkeypatch):
+    answer = {**GOOD, "terms": [{"term": "우대금리", "meaning": "AI가 쓴 뜻", "category": "예적금"},
+                                {"term": "납입", "meaning": "돈을 넣는 것", "category": "예적금"},
+                                {"term": "복리", "meaning": "원문에 없음", "category": "예적금"}]}
+    monkeypatch.setattr(llm, "get_provider", lambda: FakeProvider(reply(answer)))
+    at = _ai_click(_app(), DOC)
+    book = _wordbook(at)
+    assert any(m.startswith("**납입**") and "AI 설명(미검증)" in m and "돈을 넣는 것" in m for m in book)
+    woo = next(m for m in book if m.startswith("**우대금리**"))
+    assert "AI 설명(미검증)" not in woo and "AI가 쓴 뜻" not in woo  # 사전 뜻을 쓴다
+    assert load_glossary().lookup("우대금리").meaning in woo
+    assert not any(m.startswith("**복리**") for m in book)  # 원문에 없는 용어는 모으지 않는다

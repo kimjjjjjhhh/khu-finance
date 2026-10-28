@@ -18,6 +18,7 @@ from core.glossary import load_glossary
 from core.risks import load_risks
 from core.samples import load_samples
 from core.schema import KIND_NAME, Analysis
+from core.wordbook import add_terms, entries
 
 DISCLAIMER = (
     "금융 통역사는 금융 문서를 이해하도록 돕는 **학습 도구**이며, 상품 추천·투자 자문·법률 자문이 아닙니다. "
@@ -47,6 +48,19 @@ ss.setdefault("quiz_round", 0)  # '다시 풀기'마다 늘린다
 ss.setdefault("quiz_answered", {})  # 문항 키 -> 고른 보기
 ss.setdefault("quiz_stats", new_stats())  # 분야 -> [맞은 수, 푼 수]
 ss.setdefault("doc_scores", {})  # 문서 해시 -> {name, correct, total}
+ss.setdefault("wordbook", {})  # 용어 -> WordEntry. 세션 안에서만 모은다 (저장은 다음 단계)
+
+
+def doc_name(a: Analysis) -> str:
+    s = next((x for x in samples if x.text.strip() == a.text.strip()), None)
+    if s:
+        return s.name
+    line = next((ln.strip() for ln in a.text.splitlines() if ln.strip() and ln.strip() != "[가상 자료]"), "문서")
+    return line[:20] + ("…" if len(line) > 20 else "")
+
+
+def collect_terms(a: Analysis) -> None:
+    add_terms(ss.wordbook, a.terms, glossary, doc_name(a))
 
 
 def _doc_text() -> str | None:
@@ -64,6 +78,7 @@ def run_analysis() -> None:
         return
     ss.analysis = analyze_rule(text, glossary, risks, samples)
     ss.from_cache = False
+    collect_terms(ss.analysis)
     ss.run += 1
 
 
@@ -80,6 +95,7 @@ def run_ai() -> None:
         ss.analysis, ss.from_cache = result, False
     else:
         ss.analysis, ss.from_cache = cached, True
+    collect_terms(ss.analysis)
     ss.run += 1
 
 
@@ -121,6 +137,23 @@ with st.container(border=True):
         run_ai()
     if ss.get("error"):
         st.warning(ss.error)
+
+# ---------- 용어장 (사이드바, 세션 안에서만 모음) ----------
+WB_FILTERS = ["전체", "예적금", "대출", "카드", "기타"]
+
+with st.sidebar:
+    st.header("내 용어장")
+    st.caption("통역할 때 만난 용어가 쌓여요. 이번 세션에서만 모으고, 새로고침하면 사라져요.")
+    counts = {c: len(entries(ss.wordbook, None if c == "전체" else c)) for c in WB_FILTERS}
+    pick = st.radio("분야", WB_FILTERS, horizontal=True, key="wb_filter",
+                    format_func=lambda c: f"{c} {counts[c]}", label_visibility="collapsed")
+    rows = entries(ss.wordbook, None if pick == "전체" else pick)
+    if not rows:
+        st.caption("아직 모은 용어가 없어요." if not ss.wordbook else "이 분야에서 만난 용어가 없어요.")
+    for e in rows:
+        badge = "" if e.verified else " :orange[AI 설명(미검증)]"
+        st.markdown(f"**{esc(e.term)}** · {e.category}{badge}  \n{esc(e.meaning)}")
+        st.caption("만난 문서: " + esc(", ".join(e.docs)))
 
 a: Analysis | None = ss.analysis
 if a is None:
@@ -286,14 +319,6 @@ else:
     st.caption("문장별 통역은 ‘AI로 통역하기’를 쓸 때 만들어져요. 지금은 프로토타입 예시 문서 3종에서 볼 수 있어요.")
 
 # ---------- 퀴즈 (사전 용어로만, LLM 안 씀) ----------
-def doc_name(a: Analysis) -> str:
-    s = next((x for x in samples if x.text.strip() == a.text.strip()), None)
-    if s:
-        return s.name
-    line = next((ln.strip() for ln in a.text.splitlines() if ln.strip() and ln.strip() != "[가상 자료]"), "문서")
-    return line[:20] + ("…" if len(line) > 20 else "")
-
-
 def answer(key: str, i: int, doc_key: str, name: str) -> None:
     choice = ss[key]
     if choice is None or key in ss.quiz_answered:  # 한 문제는 처음 고른 답만 센다

@@ -354,3 +354,8 @@ def test_examples_and_cache_do_not_use_quota(monkeypatch):
     next(b for b in at.button if b.label == "AI로 통역하기").click().run()  # 같은 문서: 저장된 결과
     at.selectbox[0].select("학자금 대출 안내").run()
     assert at.session_state.ai_session.used == 1 and limits.DAILY.used() == 1
+
+
+def test_limit_caption_shows_config_numbers():
+    at = _app()
+    assert "이번 세션 5/5회 · 오늘 전체 60회" in _captions(at)

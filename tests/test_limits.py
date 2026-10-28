@@ -44,4 +44,4 @@ def test_daily_limit_is_shared_across_sessions(monkeypatch):
 
 
 def test_defaults():
-    assert (config.AI_SESSION_LIMIT, config.AI_DAILY_LIMIT) == (5, 150)
+    assert (config.AI_SESSION_LIMIT, config.AI_DAILY_LIMIT) == (5, 60)

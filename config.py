@@ -33,7 +33,7 @@ LLM_TEMPERATURE = 0.2
 
 # AI 호출 한도 (실제로 API에 보낸 요청 수 기준, 재시도 포함)
 AI_SESSION_LIMIT = 5  # 브라우저 세션 하나당
-AI_DAILY_LIMIT = 150  # 서버 전체 하루 (서버를 다시 시작하면 0부터)
+AI_DAILY_LIMIT = 60  # 서버 전체 하루 (서버를 다시 시작하면 0부터)
 
 
 def _secret(name: str) -> str | None:

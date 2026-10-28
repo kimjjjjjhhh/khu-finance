@@ -133,6 +133,7 @@ class Analysis(_Base):
     quiz: list[QuizItem] = Field(default_factory=list)
     truncated: bool = False  # 문서가 길어 앞부분만 AI에 보냈는지
     partial: bool = False  # AI 답이 max_tokens에 걸려 잘려서, 살릴 수 있는 부분만 썼는지
+    precomputed: bool = False  # 예시 문서용으로 미리 통역해 둔 결과 (이번에 API를 부르지 않음)
     # 이번 통역에 쓴 토큰 (재시도 포함 합계). 규칙 기반이면 0
     prompt_tokens: int = 0
     completion_tokens: int = 0

@@ -11,6 +11,7 @@ GLOSSARY_PATH = DATA_DIR / "glossary.json"
 RISKS_PATH = DATA_DIR / "risks.json"
 SAMPLES_DIR = DATA_DIR / "samples"
 PROMPTS_DIR = ROOT / "prompts"
+PRECOMPUTED_DIR = DATA_DIR / "precomputed"  # 예시 문서의 미리 통역한 AI 결과
 LOG_DIR = ROOT / "logs"
 USAGE_LOG_PATH = LOG_DIR / "llm_usage.log"  # 토큰 사용량만 남긴다 (문서 본문, 키는 남기지 않음)
 

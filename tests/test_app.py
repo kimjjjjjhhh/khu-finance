@@ -271,3 +271,47 @@ def test_wordbook_marks_ai_meaning_unverified(monkeypatch):
     assert "AI 설명(미검증)" not in woo and "AI가 쓴 뜻" not in woo  # 사전 뜻을 쓴다
     assert load_glossary().lookup("우대금리").meaning in woo
     assert not any(m.startswith("**복리**") for m in book)  # 원문에 없는 용어는 모으지 않는다
+
+
+# ---------- 예시 문서: 미리 통역한 결과 (API 안 부름) ----------
+
+def _precompute(sample_id: str):
+    import random
+    from core import precomputed
+    from core.ai_analyze import analyze_ai
+    from core.risks import load_risks
+    s = next(x for x in load_samples() if x.id == sample_id)
+    a = analyze_ai(s.text, FakeProvider(reply(usage=(1500, 900))), load_glossary(), load_risks(), rng=random.Random(0))
+    precomputed.save(s, a)
+    return s
+
+
+def test_example_shows_precomputed_without_call(monkeypatch):
+    s = _precompute("p2")
+    p = FakeProvider()  # 답이 없어서 불리면 실패한다
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    at = _app()
+    at.selectbox[0].select(s.name).run()
+    assert any("미리 통역한 결과" in i.value for i in at.info)
+    assert "만들 때 쓴 토큰 2,400개" in _captions(at) and "이번에 쓴 토큰 0개" in _captions(at)
+    next(b for b in at.button if b.label == "AI로 통역하기").click().run()  # 같은 예시로 AI를 눌러도
+    assert p.prompts == [] and any("미리 통역한 결과" in i.value for i in at.info)
+
+
+def test_example_without_precomputed_does_not_call(monkeypatch):
+    p = FakeProvider()
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    at = _app()
+    s = next(x for x in load_samples() if x.id == "r1")
+    at.selectbox[0].select(s.name).run()
+    next(b for b in at.button if b.label == "AI로 통역하기").click().run()
+    assert p.prompts == []
+    assert any("예시 문서는 미리 통역해 둔 결과만" in w.value for w in at.warning)
+
+
+def test_pasted_document_still_calls_api(monkeypatch):
+    _precompute("p2")
+    p = FakeProvider(reply())
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    _ai_click(_app(), DOC)
+    assert len(p.prompts) == 1

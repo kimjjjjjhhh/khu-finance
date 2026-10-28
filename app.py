@@ -3,12 +3,10 @@
 화면만 담당한다. 분석, 계산, 검증 로직은 전부 core/에 있다.
 실행: streamlit run app.py
 """
-import hashlib
-
 import streamlit as st
 
 import config
-from core import calc, llm
+from core import calc, llm, precomputed
 from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
 from core.highlight import highlight_html
@@ -48,6 +46,9 @@ ss.setdefault("quiz_round", 0)  # '다시 풀기'마다 늘린다
 ss.setdefault("quiz_answered", {})  # 문항 키 -> 고른 보기
 ss.setdefault("quiz_stats", new_stats())  # 분야 -> [맞은 수, 푼 수]
 ss.setdefault("doc_scores", {})  # 문서 해시 -> {name, correct, total}
+ss.setdefault("precomputed", precomputed.load_all(samples))  # 원문 해시 -> 예시 문서의 미리 통역한 결과
+SAMPLE_KEYS = {precomputed.text_key(s.text) for s in samples}
+EXAMPLE_ONLY_REASON = "예시 문서는 미리 통역해 둔 결과만 보여 드려요 (API를 부르지 않아요)"
 ss.setdefault("wordbook", {})  # 용어 -> WordEntry. 세션 안에서만 모은다 (저장은 다음 단계)
 
 
@@ -76,34 +77,42 @@ def _doc_text() -> str | None:
 def run_analysis() -> None:
     if (text := _doc_text()) is None:
         return
-    ss.analysis = analyze_rule(text, glossary, risks, samples)
-    ss.from_cache = False
-    collect_terms(ss.analysis)
+    show_result(analyze_rule(text, glossary, risks, samples))
+
+
+def show_result(a: Analysis, from_cache: bool = False) -> None:
+    ss.analysis, ss.from_cache = a, from_cache
+    collect_terms(a)
     ss.run += 1
 
 
 def run_ai() -> None:
     if (text := _doc_text()) is None:
         return
-    key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    key = precomputed.text_key(text)
+    if key in ss.precomputed:  # 예시 문서: 미리 통역한 결과를 쓰고 API는 부르지 않는다
+        show_result(ss.precomputed[key])
+        return
+    if key in SAMPLE_KEYS:  # 미리 통역한 결과가 없는 예시 문서도 부르지 않는다 (직접 붙여넣은 문서만 호출)
+        show_result(analyze_rule(text, glossary, risks, samples, fallback_reason=EXAMPLE_ONLY_REASON))
+        return
     cached = ss.ai_cache.get(key)
     if cached is None:
         with st.spinner("AI가 통역하고 있어요..."):
             result = analyze_ai(text, llm.get_provider(), glossary, risks, samples)
         if result.source == "ai":  # 실패한 결과는 저장하지 않아야 다시 눌러 재시도할 수 있다
             ss.ai_cache[key] = result
-        ss.analysis, ss.from_cache = result, False
+        show_result(result)
     else:
-        ss.analysis, ss.from_cache = cached, True
-    collect_terms(ss.analysis)
-    ss.run += 1
+        show_result(cached, from_cache=True)
 
 
 def pick_sample() -> None:
     s = next((x for x in samples if x.name == ss.sample_pick), None)
     if s:
         ss.doc = s.text
-        run_analysis()
+        pre = ss.precomputed.get(precomputed.text_key(s.text))
+        show_result(pre) if pre else run_analysis()
 
 
 # ---------- 입력 ----------
@@ -251,7 +260,10 @@ UNVERIFIED = "⚠ 원문에서 확인 안 됨"
 
 # ---------- 결과: 상태 표시 ----------
 if a.source == "ai":
-    st.caption("AI 통역" + (" · 저장된 결과" if ss.from_cache else ""))
+    if a.precomputed:
+        st.info("**미리 통역한 결과**예요. 예시 문서라서 이번에 AI를 새로 부르지 않았어요.", icon="📌")
+    else:
+        st.caption("AI 통역" + (" · 저장된 결과" if ss.from_cache else ""))
 else:
     st.markdown("**규칙 기반 모드** · 사전과 규칙으로 분석했어요. 문장별 통역은 AI 모드에서 만들어져요.")
     if a.fallback_reason:
@@ -341,7 +353,7 @@ def show_quiz(a: Analysis) -> None:
     if not ss.quiz:
         st.caption("사전에 용어가 없어 퀴즈를 만들 수 없어요.")
         return
-    doc_key = hashlib.sha256(a.text.encode("utf-8")).hexdigest()
+    doc_key = precomputed.text_key(a.text)
     name = doc_name(a)
     prefix = f"quiz{ss.run}_{ss.quiz_round}_"
 
@@ -396,9 +408,11 @@ with ucol:
 
 st.divider()
 st.caption(DISCLAIMER)
-if a.prompt_tokens or a.completion_tokens:
+tokens = f"{a.prompt_tokens + a.completion_tokens:,}개 (입력 {a.prompt_tokens:,} · 출력 {a.completion_tokens:,})"
+if a.precomputed:
+    st.caption(f"미리 통역한 결과라 이번에 쓴 토큰 0개 · 만들 때 쓴 토큰 {tokens}")
+elif a.prompt_tokens or a.completion_tokens:
     used = "저장된 결과라 이번에 추가로 쓴 토큰은 없어요 · " if ss.from_cache else ""
-    st.caption(f"{used}이번 통역에 쓴 토큰 {a.prompt_tokens + a.completion_tokens:,}개 "
-               f"(입력 {a.prompt_tokens:,} · 출력 {a.completion_tokens:,})")
+    st.caption(f"{used}이번 통역에 쓴 토큰 {tokens}")
 else:
     st.caption("이번 분석에 쓴 토큰 0개 (규칙 기반)")

@@ -6,6 +6,7 @@ import openai
 import pytest
 
 import config
+from core import limits
 
 
 class _NoNetworkClient:
@@ -20,3 +21,4 @@ def _no_real_llm(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "USAGE_LOG_PATH", tmp_path / "llm_usage.log")
     # 실제 data/precomputed/ 파일이 생겨도 테스트 결과가 바뀌지 않게 빈 폴더를 쓴다
     monkeypatch.setattr(config, "PRECOMPUTED_DIR", tmp_path / "precomputed")
+    limits.DAILY.reset()  # 하루 횟수는 프로세스 전체에서 공유되므로 테스트마다 비운다

@@ -6,7 +6,7 @@
 import streamlit as st
 
 import config
-from core import calc, llm, precomputed
+from core import calc, limits, llm, precomputed
 from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
 from core.highlight import highlight_html
@@ -49,6 +49,7 @@ ss.setdefault("doc_scores", {})  # 문서 해시 -> {name, correct, total}
 ss.setdefault("precomputed", precomputed.load_all(samples))  # 원문 해시 -> 예시 문서의 미리 통역한 결과
 SAMPLE_KEYS = {precomputed.text_key(s.text) for s in samples}
 EXAMPLE_ONLY_REASON = "예시 문서는 미리 통역해 둔 결과만 보여 드려요 (API를 부르지 않아요)"
+ss.setdefault("ai_session", limits.SessionCounter())  # 이 세션에서 API에 보낸 요청 수
 ss.setdefault("wordbook", {})  # 용어 -> WordEntry. 세션 안에서만 모은다 (저장은 다음 단계)
 
 
@@ -98,8 +99,14 @@ def run_ai() -> None:
         return
     cached = ss.ai_cache.get(key)
     if cached is None:
+        provider = llm.get_provider()
+        if provider is not None:
+            if not limits.can_call(ss.ai_session):  # 한도를 넘으면 부르지 않고 안내만 한다 (결과는 그대로 둠)
+                ss.error = limits.LIMIT_MESSAGE
+                return
+            provider = limits.LimitedProvider(provider, ss.ai_session)
         with st.spinner("AI가 통역하고 있어요..."):
-            result = analyze_ai(text, llm.get_provider(), glossary, risks, samples)
+            result = analyze_ai(text, provider, glossary, risks, samples)
         if result.source == "ai":  # 실패한 결과는 저장하지 않아야 다시 눌러 재시도할 수 있다
             ss.ai_cache[key] = result
         show_result(result)
@@ -144,6 +151,8 @@ with st.container(border=True):
     if c2.button("AI로 통역하기", type="primary", width="stretch",
                  help="문장별 쉬운 말 통역까지 만들어요. 키가 없거나 실패하면 규칙 기반 모드로 바뀌어요"):
         run_ai()
+    st.caption(f"AI 통역 남은 횟수: 이번 세션 {limits.session_left(ss.ai_session)}/{config.AI_SESSION_LIMIT}회 · "
+               f"오늘 전체 {limits.daily_left()}회 (예시 문서와 빠른 분석은 횟수를 쓰지 않아요)")
     if ss.get("error"):
         st.warning(ss.error)
 

@@ -3,7 +3,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import config
-from core import llm
+from core import limits, llm
 from core.glossary import load_glossary
 from core.mdsafe import esc
 from core.samples import load_samples
@@ -315,3 +315,42 @@ def test_pasted_document_still_calls_api(monkeypatch):
     monkeypatch.setattr(llm, "get_provider", lambda: p)
     _ai_click(_app(), DOC)
     assert len(p.prompts) == 1
+
+
+# ---------- AI 호출 한도 ----------
+
+def _paste_and_ai(at: AppTest, text: str) -> AppTest:
+    at.text_area[0].input(text).run()
+    next(b for b in at.button if b.label == "AI로 통역하기").click().run()
+    return at
+
+
+def test_session_limit_blocks_sixth_call(monkeypatch):
+    p = FakeProvider(*[reply() for _ in range(6)])
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    at = _app()
+    for i in range(5):
+        _paste_and_ai(at, f"{DOC}\n{i}번째")  # 서로 다른 문서라 저장된 결과를 쓰지 않는다
+    assert len(p.prompts) == 5 and "이번 세션 0/5회" in _captions(at)
+    _paste_and_ai(at, f"{DOC}\n여섯 번째")
+    assert len(p.prompts) == 5
+    assert any(w.value == limits.LIMIT_MESSAGE for w in at.warning)
+
+
+def test_daily_limit_blocks_even_new_session(monkeypatch):
+    monkeypatch.setattr(config, "AI_DAILY_LIMIT", 1)
+    p = FakeProvider(reply(), reply())
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    _paste_and_ai(_app(), DOC)
+    at = _paste_and_ai(_app(), DOC + " 다른 사람")  # 새 세션
+    assert len(p.prompts) == 1 and any(w.value == limits.LIMIT_MESSAGE for w in at.warning)
+    assert "오늘 전체 0회" in _captions(at)
+
+
+def test_examples_and_cache_do_not_use_quota(monkeypatch):
+    p = FakeProvider(reply())
+    monkeypatch.setattr(llm, "get_provider", lambda: p)
+    at = _paste_and_ai(_app(), DOC)
+    next(b for b in at.button if b.label == "AI로 통역하기").click().run()  # 같은 문서: 저장된 결과
+    at.selectbox[0].select("학자금 대출 안내").run()
+    assert at.session_state.ai_session.used == 1 and limits.DAILY.used() == 1

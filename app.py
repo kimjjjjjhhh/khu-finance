@@ -7,6 +7,7 @@ import hashlib
 
 import streamlit as st
 
+import config
 from core import calc, llm
 from core.ai_analyze import analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
@@ -107,6 +108,12 @@ with st.container(border=True):
     )
     st.text_area("통역할 문서", key="doc", height=200,
                  placeholder="대출 안내문, 카드 혜택, 예·적금 약관 등을 붙여넣으세요. 문서는 저장되지 않아요.")
+    n_chars = len(ss.doc.strip())
+    if n_chars > config.MAX_DOC_CHARS:
+        st.caption(f":orange[{n_chars:,}자 · {config.MAX_DOC_CHARS:,}자를 넘어서 AI 통역은 앞부분 "
+                   f"{config.MAX_DOC_CHARS:,}자만 해요 (빠른 분석은 전체)]")
+    else:
+        st.caption(f"{n_chars:,}자 / AI 통역 {config.MAX_DOC_CHARS:,}자까지")
     c1, c2, _ = st.columns([1, 1, 4])
     c1.button("빠른 분석", on_click=run_analysis, width="stretch", help="사전과 규칙으로 바로 분석해요 (AI 안 씀)")
     if c2.button("AI로 통역하기", type="primary", width="stretch",
@@ -221,7 +228,8 @@ if ss.doc.strip() != a.text.strip():
 if a.partial:
     st.info("응답이 길어 일부가 생략됐어요. 끝까지 받은 부분만 보여 드려요.")
 if a.truncated:
-    st.info("문서가 길어서 앞부분만 AI에 보냈어요. 뒷부분은 원문을 직접 확인하세요.")
+    st.warning(f"**앞부분 {config.MAX_DOC_CHARS:,}자만 통역했어요.** 문서가 길어서 뒷부분은 AI에 보내지 않았어요. "
+               "뒷부분의 조건과 숫자는 원문을 직접 확인하세요.", icon="✂️")
 
 left, right = st.columns([1.2, 1], gap="large")
 

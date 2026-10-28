@@ -22,11 +22,11 @@ DEFAULT_BASE_URL = "https://factchat-cloud.mindlogic.ai/v1/gateway"
 INTEREST_TAX_RATE = 0.154
 
 # 프롬프트에 넣을 문서 최대 길이 (너무 긴 문서는 잘라서 보낸다)
-MAX_DOC_CHARS = 6000
+MAX_DOC_CHARS = 4000  # 넘으면 막지 않고 앞부분만 보내고 화면에 알린다
 
 # LLM 호출 설정
 LLM_TIMEOUT_SEC = 60
-LLM_MAX_TOKENS = 4000  # 응답 길이 상한. 쓴 만큼만 과금되므로 잘림 방지에 여유를 둔다 (p1 실측 출력 2,794)
+LLM_MAX_TOKENS = 6000  # 응답 길이 상한. 쓴 만큼만 과금되므로 잘림 방지에 여유를 둔다 (1,708자 약관 실측 출력 3,264)
 LLM_TEMPERATURE = 0.2
 
 

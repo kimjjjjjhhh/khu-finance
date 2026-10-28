@@ -150,3 +150,11 @@ def test_cut_before_verdict_falls_back(deps):
 def test_length_but_complete_json_is_not_partial(deps):
     a = run(FakeProvider(reply(finish_reason="length")), deps)
     assert a.source == "ai" and not a.partial
+
+
+def test_numbers_first_survive_cut_in_pairs(deps):
+    # 프롬프트 순서대로 numbers가 앞에 오면, pairs에서 잘려도 숫자는 남는다
+    ordered = {k: GOOD[k] for k in ("docType", "verdict", "numbers", "pairs", "terms", "risks")}
+    a = run(FakeProvider(cut(ordered, keep='"easy": "중간에 깨면 0.5%만 받아요."}')), deps)
+    assert a.partial and a.numbers.months == 12 and len(a.numbers.rates) == 2
+    assert len(a.pairs) == 1 and a.terms == [] and a.risks == []

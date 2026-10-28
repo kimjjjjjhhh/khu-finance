@@ -216,3 +216,16 @@ def test_understanding_bars_accumulate_across_documents():
     assert len(at.session_state.doc_scores) == 2
     texts = [p.proto.text for p in at.get("progress")]
     assert any(t.startswith("대출 · ") and "정답" in t for t in texts)
+
+
+# ---------- 긴 문서 ----------
+
+def test_char_count_and_truncation_notice(monkeypatch):
+    monkeypatch.setattr(config, "MAX_DOC_CHARS", 30)
+    monkeypatch.setattr(llm, "get_provider", lambda: FakeProvider(reply()))
+    at = _app()
+    at.text_area[0].input("짧은 글").run()
+    assert "4자 / AI 통역 30자까지" in _captions(at)
+    at = _ai_click(at, DOC)
+    assert "30자를 넘어서 AI 통역은 앞부분 30자만 해요" in _captions(at)
+    assert any("앞부분 30자만 통역했어요" in w.value for w in at.warning)

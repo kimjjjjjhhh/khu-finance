@@ -5,6 +5,8 @@ from streamlit.testing.v1 import AppTest
 import config
 from core import limits, llm
 from core.glossary import load_glossary
+from core.ai_analyze import UNAVAILABLE
+from core.llm import LLMError
 from core.mdsafe import esc
 from core.samples import load_samples
 from tests.fakes import DOC, GOOD, FakeProvider, cut, reply
@@ -359,3 +361,46 @@ def test_examples_and_cache_do_not_use_quota(monkeypatch):
 def test_limit_caption_shows_config_numbers():
     at = _app()
     assert "이번 세션 5/5회 · 오늘 전체 60회" in _captions(at)
+
+
+
+# ---------- 호출 실패: 앱이 멈추지 않고 안내 후 규칙 기반 ----------
+
+# 키처럼 생긴 가짜 값과 주소가 섞인 오류 메시지. 파일에 그대로 적으면 비밀 값 검사에 걸리므로 실행할 때 조립한다
+LEAKY = "sk-" + "live-REALLOOKING" + "KEY-0001 https://factchat-cloud.mindlogic.ai/v1/gateway"
+
+
+def _all_text(at: AppTest) -> str:
+    parts = [e.value for kind in ("markdown", "caption", "warning", "info", "error", "success")
+             for e in getattr(at, kind)]
+    return "\n".join(map(str, parts))
+
+
+@pytest.mark.parametrize("error", [LLMError("connection", "AI 서버에 연결하지 못했어요"),
+                                   LLMError("timeout", "AI 응답이 너무 늦어요"),
+                                   LLMError("auth", "API 키가 맞지 않아요"),
+                                   RuntimeError(LEAKY)])
+def test_ai_failure_shows_notice_and_rule_result(monkeypatch, error):
+    class Boom:
+        model = "fake"
+
+        def complete(self, system, user):
+            raise error
+
+    monkeypatch.setattr(llm, "get_provider", lambda: Boom())
+    at = _ai_click(_app(), DOC)
+    assert not at.exception
+    assert any(w.value.startswith(esc(UNAVAILABLE)) for w in at.warning)
+    assert any("규칙 기반 모드" in m.value for m in at.markdown) and at.metric  # 규칙 기반 결과와 계산기
+    text = _all_text(at)
+    assert "sk-live" not in text and "mindlogic" not in text and "factchat" not in text
+
+
+def test_provider_creation_error_does_not_crash(monkeypatch):
+    def broken():
+        raise ValueError(LEAKY)
+
+    monkeypatch.setattr(llm, "get_provider", broken)
+    at = _ai_click(_app(), DOC)
+    assert not at.exception and "sk-live" not in _all_text(at)
+    assert any(w.value.startswith(esc(UNAVAILABLE)) for w in at.warning)

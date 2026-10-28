@@ -96,3 +96,15 @@ def test_max_tokens_comes_from_config(monkeypatch):
     client = FakeClient()
     OpenAICompatProvider(SECRET, client=client).complete("s", "u")
     assert client.calls[0]["max_tokens"] == 1234
+
+
+
+def test_non_json_gateway_page_becomes_llm_error():
+    # 게이트웨이나 프록시가 HTML 오류 페이지를 200으로 주면 SDK는 응답 객체 대신 문자열을 돌려준다
+    class HtmlClient(FakeClient):
+        def _create(self, **kwargs):
+            return "<html>gateway error https://factchat-cloud.mindlogic.ai</html>"
+
+    with pytest.raises(LLMError) as ei:
+        OpenAICompatProvider(SECRET, client=HtmlClient()).complete("s", "u")
+    assert ei.value.kind == "api" and "mindlogic" not in str(ei.value) and ei.value.__cause__ is None

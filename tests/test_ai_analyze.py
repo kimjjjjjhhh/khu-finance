@@ -4,7 +4,8 @@ import random
 import pytest
 
 import config
-from core.ai_analyze import CUT_OFF_REASON, NO_KEY_REASON, analyze_ai, parse_llm_json
+from core.ai_analyze import (CUT_OFF_REASON, NO_KEY_REASON, UNAVAILABLE, UNEXPECTED_REASON, analyze_ai,
+                              parse_llm_json, unavailable)
 from core.analyze import calculator_inputs
 from core.glossary import load_glossary
 from core.llm import LLMError
@@ -104,7 +105,7 @@ def test_no_key_falls_back_without_call(deps):
 def test_call_error_falls_back_without_retry(deps):
     p = FakeProvider(LLMError("rate_limit", "요청이 많거나 크레딧이 부족해요"), reply())
     a = run(p, deps)
-    assert a.source == "rule" and a.fallback_reason == "요청이 많거나 크레딧이 부족해요"
+    assert a.source == "rule" and a.fallback_reason == unavailable("요청이 많거나 크레딧이 부족해요")
     assert len(p.prompts) == 1
 
 
@@ -158,3 +159,45 @@ def test_numbers_first_survive_cut_in_pairs(deps):
     a = run(FakeProvider(cut(ordered, keep='"easy": "중간에 깨면 0.5%만 받아요."}')), deps)
     assert a.partial and a.numbers.months == 12 and len(a.numbers.rates) == 2
     assert len(a.pairs) == 1 and a.terms == [] and a.risks == []
+
+
+
+# ---------- 호출 실패 (배포 서버에서 연결, 시간 초과, 인증 오류) ----------
+
+class Boom:
+    """complete()에서 정해 둔 예외를 던지는 Provider."""
+    model = "fake"
+
+    def __init__(self, error):
+        self.error, self.calls = error, 0
+
+    def complete(self, system, user):
+        self.calls += 1
+        raise self.error
+
+
+# 키처럼 생긴 가짜 값과 주소가 섞인 오류 메시지. 파일에 그대로 적으면 비밀 값 검사에 걸리므로 실행할 때 조립한다
+LEAKY = "sk-" + "live-REALLOOKING" + "KEY-0001 https://factchat-cloud.mindlogic.ai/v1/gateway"
+
+
+@pytest.mark.parametrize("kind, msg", [("connection", "AI 서버에 연결하지 못했어요"),
+                                       ("timeout", "AI 응답이 너무 늦어요"),
+                                       ("auth", "API 키가 맞지 않아요")])
+def test_call_failures_fall_back_with_notice(deps, kind, msg):
+    p = Boom(LLMError(kind, msg))
+    a = run(p, deps)
+    assert a.source == "rule" and a.fallback_reason.startswith(UNAVAILABLE)
+    assert p.calls == 1  # 호출 실패는 재시도하지 않는다
+    assert a.terms and a.number_checks  # 규칙 기반 결과로 채워진다
+
+
+def test_unexpected_error_falls_back_without_leaking(deps):
+    a = run(Boom(RuntimeError(LEAKY)), deps)
+    assert a.source == "rule" and a.fallback_reason == UNEXPECTED_REASON
+    assert "sk-live" not in a.model_dump_json() and "mindlogic" not in a.model_dump_json()
+
+
+def test_limit_error_keeps_limit_message(deps):
+    from core.limits import LIMIT_MESSAGE
+    a = run(Boom(LLMError("limit", LIMIT_MESSAGE)), deps)
+    assert a.fallback_reason == LIMIT_MESSAGE

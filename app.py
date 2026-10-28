@@ -7,7 +7,7 @@ import streamlit as st
 
 import config
 from core import calc, limits, llm, precomputed
-from core.ai_analyze import analyze_ai
+from core.ai_analyze import UNEXPECTED_REASON, analyze_ai
 from core.analyze import analyze_rule, calculator_inputs
 from core.highlight import highlight_html
 from core.mdsafe import esc
@@ -99,7 +99,11 @@ def run_ai() -> None:
         return
     cached = ss.ai_cache.get(key)
     if cached is None:
-        provider = llm.get_provider()
+        try:
+            provider = llm.get_provider()
+        except Exception:  # noqa: BLE001  클라이언트를 못 만들어도 앱은 멈추지 않고 규칙 기반으로
+            show_result(analyze_rule(text, glossary, risks, samples, fallback_reason=UNEXPECTED_REASON))
+            return
         if provider is not None:
             if not limits.can_call(ss.ai_session):  # 한도를 넘으면 부르지 않고 안내만 한다 (결과는 그대로 둠)
                 ss.error = limits.LIMIT_MESSAGE
@@ -276,7 +280,7 @@ if a.source == "ai":
 else:
     st.markdown("**규칙 기반 모드** · 사전과 규칙으로 분석했어요. 문장별 통역은 AI 모드에서 만들어져요.")
     if a.fallback_reason:
-        st.warning(f"AI 통역 대신 규칙 기반 모드로 보여 드려요: {esc(a.fallback_reason)}")
+        st.warning(f"{esc(a.fallback_reason)}  \n아래는 규칙 기반으로 분석한 결과예요.")
 if ss.doc.strip() != a.text.strip():
     st.info("문서가 바뀌었어요. 다시 통역해 주세요. 아래 결과는 바뀌기 전 문서 기준이에요.")
 if a.partial:

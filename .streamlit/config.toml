@@ -2,3 +2,7 @@
 # 로컬에서는 run_local.bat가 --server.address localhost로 이 컴퓨터에서만 연다.
 [browser]
 gatherUsageStats = false
+
+[client]
+# 예상하지 못한 오류가 나도 화면에는 오류 종류만 보이고, 메시지와 코드 위치(키, 주소가 섞일 수 있음)는 숨긴다
+showErrorDetails = "type"

@@ -6,6 +6,7 @@
 대체 이유는 Analysis.fallback_reason에 담겨 화면에 '규칙 기반 모드'와 함께 표시된다.
 """
 import json
+import logging
 import random
 import re
 
@@ -22,8 +23,19 @@ from core.schema import Analysis, LLMAnalysis, Pair, Rate, Risk, Sample, Term
 from core.verify import verify_pairs, verify_risks, verify_terms
 
 MAX_ATTEMPTS = 2  # 처음 1번 + 형식 오류 시 재시도 1번
-NO_KEY_REASON = "API 키가 설정되지 않았어요"
-CUT_OFF_REASON = "AI 응답이 길어 잘렸고, 쓸 수 있는 부분이 없었어요"
+UNAVAILABLE = "지금은 AI 통역을 쓸 수 없어요. 예시 문서나 빠른 분석을 이용해 주세요"
+log = logging.getLogger(__name__)
+
+
+def unavailable(cause: str) -> str:
+    """화면에 보일 대체 이유. cause는 정해 둔 문구만 넣는다 (예외 메시지에는 키나 주소가 섞일 수 있음)."""
+    return f"{UNAVAILABLE} (원인: {cause})"
+
+
+NO_KEY_REASON = unavailable("API 키가 설정되지 않았어요")
+CUT_OFF_REASON = unavailable("AI 응답이 길어 잘렸고, 쓸 수 있는 부분이 없었어요")
+BAD_FORMAT_REASON = unavailable("AI 답변 형식이 맞지 않았어요 (재시도 후에도 실패)")
+UNEXPECTED_REASON = unavailable("예상하지 못한 오류")
 
 
 def parse_llm_json(text: str) -> LLMAnalysis:
@@ -140,7 +152,11 @@ def analyze_ai(
         try:
             resp = provider.complete(prompt.system, prompt.user)
         except LLMError as e:
-            return fallback(str(e))
+            # 한도 초과는 한도 안내를 그대로, 나머지(연결, 시간 초과, 인증 등)는 'AI 통역을 쓸 수 없어요'로
+            return fallback(str(e) if e.kind == "limit" else unavailable(str(e)))
+        except Exception as e:  # noqa: BLE001  어떤 오류에도 앱이 멈추지 않게 하는 마지막 안전망
+            log.warning("AI 호출 중 예상하지 못한 오류: %s", type(e).__name__)  # 메시지는 남기지 않음
+            return fallback(UNEXPECTED_REASON)
         usage += resp.usage
         try:
             parsed = parse_llm_json(resp.text)
@@ -154,7 +170,7 @@ def analyze_ai(
                 break
             prompt = retry_prompt(prompt, _error_summary(e))
     if parsed is None:
-        return fallback("AI 답변 형식이 맞지 않아요 (재시도 후에도 실패)")
+        return fallback(BAD_FORMAT_REASON)
 
     terms = verify_terms(parsed.terms, text, glossary)
     return Analysis(

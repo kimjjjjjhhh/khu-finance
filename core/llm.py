@@ -104,13 +104,17 @@ class OpenAICompatProvider:
             status = getattr(e, "status_code", None)
             raise LLMError("api", f"AI 서버 오류{f' ({status})' if status else ''}") from None
 
-        u = resp.usage
-        usage = Usage(getattr(u, "prompt_tokens", 0) or 0, getattr(u, "completion_tokens", 0) or 0)
-        choice = resp.choices[0] if resp.choices else None
-        finish = (getattr(choice, "finish_reason", None) or "stop") if choice else "stop"
+        try:
+            u = resp.usage
+            usage = Usage(getattr(u, "prompt_tokens", 0) or 0, getattr(u, "completion_tokens", 0) or 0)
+            choice = resp.choices[0] if resp.choices else None
+            finish = (getattr(choice, "finish_reason", None) or "stop") if choice else "stop"
+            text = (choice.message.content or "") if choice else ""
+        except (AttributeError, IndexError, TypeError):
+            # 게이트웨이나 프록시가 오류 페이지(HTML)를 200으로 보내면 SDK가 응답 객체 대신 문자열을 준다
+            raise LLMError("api", "AI 서버가 알 수 없는 형식으로 답했어요") from None
         log_usage(self.model, usage, finish)
-        text = (choice.message.content or "") if choice else ""
-        if not text.strip():
+        if not isinstance(text, str) or not text.strip():
             raise LLMError("empty", "AI가 빈 답을 보냈어요")
         return LLMResponse(text=text, usage=usage, finish_reason=finish)
 
